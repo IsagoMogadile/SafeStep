@@ -1,0 +1,524 @@
+ 
+Hackathon System Specification Brief
+Campus Safety Companion App for Students
+Project Title: Campus Safety Companion App
+Hackathon Theme: Improving Student Safety and Emergency Support on Campus
+Client: Department of Software Engineering / School of IT
+Target Users: Students, campus security, student support staff, residence staff, and student next-of-kin
+Version: 1.0
+Year: 2026
+1. Purpose of the System
+The purpose of this system is to provide students with a simple, quick, and reliable way to request help when they feel unsafe or are in an emergency situation on campus.
+The proposed app should allow students to access a panic button, share their location, contact campus security, notify trusted contacts, and access safety resources.
+The system should be designed with care, urgency, privacy, and student dignity in mind.
+The hackathon prototype does not need to connect to real emergency services. However, it must clearly show how the app would work in a real-world implementation.
+2. Problem Statement
+Students may sometimes find themselves in unsafe, uncomfortable, or emergency situations on or near campus. In some cases, students may not know who to contact, may not be able to make a phone call, or may need to alert others quickly.
+Students may also feel unsafe when walking alone, leaving campus late, waiting for transport, moving between venues, or returning to residences.
+There is a need for a student-friendly safety app that can:
+•	Provide quick access to emergency support.
+•	Allow students to trigger a panic alert.
+•	Share location information with authorised responders.
+•	Allow students to notify trusted contacts.
+•	Help students access campus safety information.
+•	Support safer movement around campus.
+•	Provide guidance during uncertain or uncomfortable situations.
+The system should help students feel that support is accessible, immediate, and respectful.
+3. System Goal
+The goal of the system is to improve student safety by providing a digital tool that allows students to:
+•	Raise an emergency alert quickly.
+•	Share their current location.
+•	Contact campus security.
+•	Notify trusted contacts.
+•	Access safety tips and emergency procedures.
+•	Report safety concerns or incidents.
+•	Receive safety alerts from the university.
+4. Scope of the System
+4.1 In Scope for Hackathon Prototype
+The prototype should include:
+•	Student safety home screen.
+•	Panic button simulation.
+•	Emergency contact options.
+•	Trusted contact setup using dummy data.
+•	Location-sharing simulation.
+•	Safety alerts or announcements.
+•	Incident reporting form.
+•	Safety resources and guidance.
+•	Admin or responder dashboard concept.
+•	Privacy notice. 
+•	Role-based access simulation.
+4.2 Out of Scope for Hackathon Prototype
+The prototype does not need to include:
+•	Real integration with police, ambulance, or emergency services.
+•	Real integration with university security systems.
+•	Real-time GPS tracking.
+•	Real student authentication.
+•	Live monitoring by security staff.
+•	Collection of real sensitive student data.
+•	Storage of real emergency records.
+For the prototype, teams must use sample data only.
+5. Target Users
+5.1 Student
+A student who may need help during an emergency, while feeling unsafe, or while moving around campus.
+5.2 Campus Security Officer
+An authorised person who would receive safety alerts, review student location information, and respond to incidents in a real system.
+5.3 Trusted Contact
+A person nominated by the student, such as a family member, friend, mentor, or residence contact, who may receive alerts in a real system.
+5.4 Student Support Staff
+A staff member who may support students after an incident or refer them to appropriate services.
+5.5 System Administrator
+An authorised staff member responsible for managing emergency contacts, safety alerts, resources, and responder access.
+6. User Stories
+The system should support the following user stories:
+1.	As a student, I want to press a panic button so that I can quickly request help during an emergency.
+2.	As a student, I want my location to be shared when I trigger an alert so that responders know where to find me.
+3.	As a student, I want to notify trusted contacts so that people I trust are aware that I need help.
+4.	As a student, I want to contact campus security quickly so that I do not have to search for emergency numbers.
+5.	As a student, I want to use a “walk with me” feature so that someone can monitor my journey when I feel unsafe.
+6.	As a student, I want to report a safety concern so that the university can identify unsafe areas or recurring problems.
+7.	As a student, I want to receive safety alerts so that I know about risks, affected areas, or important instructions.
+8.	As campus security, I want to view incoming alerts so that I can respond quickly.
+9.	As campus security, I want to see the student’s last known location so that I can respond more effectively.
+10.	As an administrator, I want to manage safety resources and emergency contacts so that students always have up-to-date information.
+11.	As a student support staff member, I want students to be directed to support services after an incident so that they are not left alone after requesting help.
+7. Functional Requirements
+FR1: Safety Home Screen
+The system must display a safety-focused home screen.
+The home screen should include:
+•	Panic button.
+•	Call campus security button.
+•	Report a concern.
+•	Safety alerts.
+•	Emergency contacts.
+•	Safety resources.
+The panic button should be highly visible and easy to access.
+FR2: Panic Button
+The system must include a panic button feature.
+When activated, the panic button should simulate:
+•	Creating an emergency alert.
+•	Capturing the student’s current or selected location.
+•	Notifying campus security.
+•	Notifying trusted contacts.
+•	Displaying confirmation that help has been requested.
+For the hackathon prototype, this must be simulated using dummy data.
+The panic button should include a short confirmation step or countdown to reduce accidental alerts, unless the team can justify a one-tap design.
+Example:
+“Hold for 3 seconds to send emergency alert.”
+or
+“Emergency alert will be sent in 5 seconds. Tap cancel if this was accidental.”
+FR3: Location Sharing Simulation
+The system should simulate location sharing.
+This may include:
+•	Current location placeholder.
+•	Manual location selection.
+•	Campus map area selection.
+•	Building or venue selection.
+•	Last known location.
+•	Time of location update.
+The prototype may use a static campus map, sample coordinates, or selected campus zones.
+In a production version, location sharing would require user consent, secure handling, and integration with device location services.
+FR4: Emergency Contact Options
+The system must provide quick access to emergency contacts.
+This may include:
+•	Campus security.
+•	Residence support.
+•	Student counselling or wellness support.
+The app should allow one-tap calling in a production version. In the hackathon prototype, this can be simulated.
+FR5: Trusted Contacts
+The system should allow students to set trusted contacts using dummy data.
+Trusted contact information may include:
+•	Name.
+•	Relationship.
+•	Phone number.
+•	Email address.
+•	Preferred alert method.
+In the prototype, students should not enter real contact details.
+The app should show how trusted contacts would be notified in an emergency.
+FR6: “Walk With Me” / Journey Monitoring
+The system should include a feature that allows a student to start a monitored journey when they feel unsafe.
+This feature may allow the student to:
+•	Choose a destination.
+•	Set an estimated arrival time.
+•	Select a trusted contact.
+•	Start a journey timer.
+•	Confirm arrival safely.
+•	Trigger an alert if the timer expires without confirmation.
+For the prototype, this may be simulated.
+Example flow:
+1.	Student taps “Walk With Me.”
+2.	Student selects destination.
+3.	App starts safety timer.
+4.	Student taps “I arrived safely.”
+5.	If time expires, the app simulates an alert.
+FR7: Safety Alerts
+The system should allow students to view safety alerts.
+Each alert may include:
+•	Alert title.
+•	Date and time.
+•	Affected area.
+•	Description.
+•	Recommended action.
+•	Alert level.
+Example alert levels:
+•	Information.
+•	Caution.
+•	Urgent.
+Alerts should be written clearly and calmly. They should inform students without creating panic.
+FR8: Incident or Concern Reporting
+The system should allow students to report a safety concern or incident.
+The report form may include:
+•	Type of concern.
+•	Location.
+•	Date and time.
+•	Description.
+•	Optional photo upload concept.
+•	Option to submit anonymously in a future production system.
+•	Option to request follow-up.
+For the hackathon prototype, the system must not collect real incident reports. Teams should use sample data and clearly label the feature as simulated.
+FR9: Safety Resources
+The system must provide safety guidance and support information.
+This may include:
+•	What to do in an emergency.
+•	How to contact campus security.
+•	Safe walking tips.
+•	Transport safety tips.
+•	Residence safety tips.
+•	How to support a friend who feels unsafe.
+•	Where to access counselling or student wellness support.
+•	What to do after reporting an incident.
+The wording should be calm, supportive, and non-blaming.
+FR10: Responder Dashboard Concept
+The system should include a simple dashboard concept for authorised responders.
+This may include:
+•	List of active alerts.
+•	Student name or anonymous alert ID, using dummy data.
+•	Alert type.
+•	Location.
+•	Time triggered.
+•	Status.
+•	Assigned responder.
+•	Notes.
+Possible alert statuses:
+•	New.
+•	Acknowledged.
+•	Responder dispatched.
+•	Resolved.
+•	False alarm.
+For the prototype, this dashboard must use dummy data only.
+FR11: Admin Content Management Concept
+The system should include an admin concept showing how authorised staff would manage:
+•	Emergency contact numbers.
+•	Safety alerts.
+•	Campus zones.
+•	Safety resources.
+•	Responder accounts.
+•	Incident categories.
+The prototype may use mock screens instead of a fully functional admin system.
+FR12: Role-Based Access Simulation
+The prototype may simulate different user roles using:
+•	Dummy login.
+•	Role selection.
+•	Sample user accounts.
+Possible roles:
+•	Student.
+•	Campus security.
+•	Student support staff.
+•	Administrator.
+This is only for demonstration. In a real-world implementation, users must be authenticated through an official university-approved authentication system. Roles must be assigned based on verified permissions and must not be self-selected.
+8. Human-Centred and Trauma-Informed UI/UX Design
+The app must be designed with care because it may be used when students feel scared, unsafe, stressed, or unsure.
+The UI should be:
+•	Calm.
+•	Clear.
+•	Fast.
+•	Non-judgemental.
+•	Supportive.
+•	Easy to use under pressure.
+The app must avoid wording that blames students or makes them feel responsible for what happened to them.
+8.1 Supportive Wording
+Teams must include at least three examples of supportive wording in the app.
+Examples:
+Situation	Avoid	Better wording
+Student triggers alert	Alert sent	Help request sent. Stay where you are if it is safe to do so.
+Student cancels alert	False alarm	Alert cancelled. You can send another alert at any time.
+Student reports concern	Submit complaint	Share a safety concern. Your report can help improve campus safety.
+Student feels unsafe	What is your problem?	Tell us what kind of help you need.
+Student missed journey check-in	Timer expired	We have not received your check-in. An alert will be simulated now.
+9. Non-Functional Requirements
+NFR1: Usability Under Stress
+The app must be easy to use when a student is anxious or under pressure.
+The panic button and emergency contact options must be easy to find.
+NFR2: Accessibility
+The app should follow accessibility principles, including:
+•	Large readable text.
+•	Clear icons.
+•	Strong colour contrast.
+•	Simple navigation.
+•	Minimal steps for emergencies.
+•	Support for students with disabilities.
+NFR3: Mobile-First Design
+The app should be designed primarily for mobile phones.
+NFR4: Performance
+Emergency-related screens should load quickly.
+NFR5: Privacy and Data Protection
+The app must protect student privacy.
+Teams must explain:
+•	What data would be collected.
+•	Why the data is needed.
+•	Who would have access to it.
+•	How long it would be kept.
+•	How it would be protected.
+•	How POPIA principles would be considered.
+NFR6: Security
+In a real-world version, the system would need secure authentication, encrypted communication, secure storage, audit logs, and restricted access to sensitive data.
+For the hackathon prototype, teams should describe these security requirements even if they do not implement them fully.
+NFR7: Reliability
+Emergency functionality must be designed to be reliable.
+Teams should consider:
+•	What happens if the student has no data.
+•	What happens if location is unavailable.
+•	What happens if an alert fails.
+•	What happens if the phone battery is low.
+•	What happens if the alert is triggered accidentally.
+NFR8: Maintainability
+The system should be structured so that emergency numbers, campus zones, safety resources, and alert messages can be updated by authorised staff.
+NFR9: Ethical Design
+The app must not create false confidence. It should clearly indicate that the hackathon version is a prototype and that emergency features are simulated.
+In a production version, the app must be tested, approved, and integrated with official university safety procedures before being used by students.
+10. Suggested App Sections
+The prototype should include the following sections:
+1.	Home / Safety Dashboard
+2.	Panic Button
+3.	Call for Help
+4.	Walk With Me
+5.	Report a Concern
+6.	Safety Alerts
+7.	Trusted Contacts
+8.	Safety Resources
+9.	My Location / Campus Zones
+10.	Responder Dashboard
+11.	Admin Settings Concept
+12.	Privacy Notice
+
+11. Suggested Data Entities
+11.1 Student
+•	Student ID
+•	Name, dummy data only
+•	Programme, optional
+•	Trusted contacts
+•	Emergency preferences
+11.2 Emergency Alert
+•	Alert ID
+•	Student ID or anonymous alert ID
+•	Alert type
+•	Location
+•	Time triggered
+•	Status
+•	Assigned responder
+•	Notes
+11.3 Trusted Contact
+•	Contact ID
+•	Name
+•	Relationship
+•	Phone number
+•	Email address
+•	Preferred alert method
+11.4 Campus Zone
+•	Zone ID
+•	Zone name
+•	Description
+•	Risk status
+•	Nearest help point
+•	Map reference
+11.5 Safety Alert
+•	Alert ID
+•	Title
+•	Message
+•	Affected area
+•	Date and time
+•	Alert level
+•	Recommended action
+11.6 Incident Report
+•	Report ID
+•	Report type
+•	Location
+•	Date and time
+•	Description
+•	Follow-up requested
+•	Status
+11.7 Responder
+•	Responder ID
+•	Name
+•	Role
+•	Contact details
+•	Availability status
+12. Minimum Viable Product
+At minimum, each team should produce a working or clickable prototype that includes:
+•	Safety home screen.
+•	Panic button simulation.
+•	Emergency contact screen.
+•	Location-sharing simulation.
+•	Trusted contact concept.
+•	Incident reporting form.
+•	Safety resources section.
+•	Basic responder dashboard concept.
+•	Privacy notice.
+•	At least three examples of supportive microcopy.
+13. Stretch Features
+Teams may earn additional credit for including:
+•	“Walk With Me” journey timer.
+•	QR code scan points around campus.
+•	Map of safe routes.
+•	Offline emergency information.
+•	Fake push notification simulation.
+•	Safety chatbot using approved static content.
+•	Wearable panic button concept.
+•	Integration concept with campus security.
+•	Multi-language support.
+•	Accessibility mode.
+•	Anonymous safety concern reporting.
+•	Heatmap concept for repeated safety concerns.
+•	Low-data mode.
+•	Battery-aware safety mode.
+•	Silent panic alert mode.
+Silent panic features must be presented responsibly and as a design concept only. Teams must explain how accidental activation and misuse would be managed.
+14. Design Requirements
+The app should:
+•	Use a clean and calm interface.
+•	Make emergency actions easy to find.
+•	Avoid clutter.
+•	Use clear icons and labels.
+•	Use colour carefully.
+•	Avoid panic-inducing language.
+•	Make students feel supported.
+•	Provide clear next steps.
+•	Use respectful and non-blaming wording.
+•	Clearly distinguish between emergency actions and general safety information.
+The panic button should be visible but should not be designed in a way that causes accidental activation.
+15. Ethical, Legal, and Privacy Requirements
+Because this app deals with student safety, the design must be ethically responsible.
+Teams must consider:
+•	POPIA compliance.
+•	Consent for location sharing.
+•	Who can access emergency data.
+•	Whether reports can be anonymous.
+•	How to prevent misuse.
+•	How false alerts would be handled.
+•	How data would be stored and deleted.
+•	What support is offered after an incident.
+•	How the app avoids blaming students.
+•	How the app avoids replacing official emergency procedures.
+The app must make it clear that urgent emergencies should still be handled through official university and emergency channels.
+16. Technical Requirements
+Teams may choose their own technology stack.
+Possible options include:
+•	HTML, CSS, and JavaScript.
+•	React, Vue, Angular, or similar frameworks.
+•	Flutter or React Native.
+•	Firebase or Supabase.
+•	Local storage.
+•	JSON mock data.
+•	Figma clickable prototype.
+The prototype should be easy to demonstrate and should not require complex installation.
+Teams should avoid building features that require real personal or emergency data.
+17. Deliverables
+Each team must submit:
+1.	A working prototype or clickable prototype.
+2.	Source code or design files.
+3.	A short system overview document.
+4.	A short presentation.
+5.	A demonstration of the panic button simulation.
+6.	A demonstration of the location-sharing concept.
+7.	A description of how role-based access would work in a real system.
+8.	A privacy and ethics statement.
+9.	A short explanation of how the app supports student safety.
+10.	A list of assumptions and limitations.
+18. Presentation Requirements
+Each team presentation should cover:
+•	The safety problem being addressed.
+•	Target users.
+•	Main features.
+•	Panic button flow.
+•	Location-sharing flow.
+•	Trusted contact concept.
+•	Responder dashboard concept.
+•	Technical approach.
+•	Privacy, ethics, and POPIA considerations.
+•	What is simulated versus what would be real in production.
+•	Risks and limitations.
+•	What the team would improve with more time.
+Suggested presentation length: 10 to 15 minutes.
+19. Evaluation Criteria
+Projects will be judged using the following criteria.
+19.1 Problem Understanding
+Does the solution show a realistic understanding of student safety needs?
+19.2 Emergency Flow Design
+Is the panic button flow clear, fast, and responsible?
+19.3 Usability Under Pressure
+Can a student use the app quickly when feeling unsafe?
+19.4 Functionality
+Does the prototype include the required core features?
+19.5 Privacy and Ethics
+Does the team handle location, emergency, and student data responsibly?
+19.6 Human-Centred Design
+Is the app calm, supportive, non-blaming, and respectful?
+19.7 Technical Quality
+Is the prototype well-structured and appropriate for the hackathon?
+19.8 Innovation
+Does the team add thoughtful features that improve safety?
+19.9 Presentation and Demo
+Does the team clearly explain and demonstrate the solution?
+20. Suggested Marking Rubric
+Criterion	Weight
+Problem understanding and relevance	12%
+Core safety functionality	20%
+Panic button and emergency flow design	15%
+Usability and accessibility under pressure	12%
+Privacy, ethics, and POPIA considerations	5%
+Human-centred and supportive UI/UX	10%
+Technical implementation	10%
+Innovation and value-added features	12%
+Presentation and demo quality	4%
+Total	100%
+
+21. Sample Data
+Example Emergency Alert
+Alert ID: EA001
+Student: Demo Student
+Location: Near Library Walkway
+Time: 18:42
+Alert Type: Panic Alert
+Status: New
+Message: Help request sent. Campus security has been notified in this simulation.
+Example Safety Alert
+Title: Caution: Low Lighting Near Parking Area
+Area: South Campus Parking Zone
+Alert Level: Caution
+Message: Students are advised to walk in groups and use well-lit routes while maintenance is being addressed.
+Example Trusted Contact
+Name: Demo Contact
+Relationship: Friend
+Alert Method: SMS simulation
+Message: Demo Student has triggered a safety alert. Last known location: Library Walkway.
+22. Assumptions
+For the hackathon, teams may assume that:
+•	The app is a prototype.
+•	All emergency data is simulated.
+•	Students will mainly use the app on mobile phones.
+•	Role-based access can be simulated.
+•	Campus security integration is not required for the prototype.
+•	Location-sharing can be simulated using sample map data.
+•	A real version would require university approval, security testing, legal review, and integration with official emergency response procedures.
+23. Success Criteria
+The hackathon solution will be considered successful if it:
+•	Provides a clear panic button flow.
+•	Shows how students can request help quickly.
+•	Demonstrates responsible location-sharing.
+•	Includes trusted contact and campus security concepts.
+•	Supports students without blaming or frightening them.
+•	Handles privacy and safety data responsibly.
+•	Shows potential for future university implementation.
+24. Final Challenge Statement for Students
+Design and develop a campus safety companion app that helps students request help quickly, share their location responsibly, and access support when they feel unsafe.
+Your solution must be more than a panic button. It should be a thoughtful, ethical, student-centred safety tool that combines emergency response, prevention, guidance, privacy, and care.
+A strong solution will show technical skill, but it will also show responsibility. When designing for safety, every button, message, and data decision matters.

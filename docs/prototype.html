@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Vikela — NMU Campus Safety Prototype</title>
+<style>
+  :root{
+    --primary:#1a56db;
+    --primary-dark:#123a99;
+    --primary-light:#e8f0fe;
+    --primary-lighter:#f4f8ff;
+    --danger:#dc2626;
+    --danger-light:#fef2f2;
+    --success:#16a34a;
+    --success-light:#f0fdf4;
+    --warning:#f59e0b;
+    --warning-light:#fff7ed;
+    --text:#0f172a;
+    --text-secondary:#64748b;
+    --text-muted:#94a3b8;
+    --border:#e6ebf2;
+    --surface:#f6f8fc;
+    --white:#ffffff;
+    --radius-lg:20px;
+    --radius-md:14px;
+    --radius-sm:10px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  body{background:#eef1f6;padding:28px 16px 60px;}
+
+  /* ---- Role switcher ---- */
+  .role-switch{display:flex;justify-content:center;gap:8px;margin-bottom:26px;flex-wrap:wrap;}
+  .role-btn{padding:10px 18px;border-radius:999px;border:1.5px solid var(--border);background:#fff;
+    font-size:13px;font-weight:700;color:var(--text-secondary);cursor:pointer;}
+  .role-btn.active{background:var(--primary);border-color:var(--primary);color:#fff;}
+
+  .app-shell{display:none;flex-direction:column;align-items:center;gap:14px;}
+  .app-shell.show{display:flex;}
+  .app-label{color:#64748b;font-size:12.5px;font-weight:600;}
+
+  /* ---- Phone device ---- */
+  .device{
+    width:375px;height:812px;background:#000;border-radius:52px;padding:14px;
+    box-shadow:0 30px 60px -20px rgba(15,23,42,.35), 0 0 0 2px #0b0b0b;
+    position:relative;
+  }
+  .screen-wrap{width:100%;height:100%;background:var(--white);border-radius:38px;overflow:hidden;position:relative;}
+  .notch{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:150px;height:26px;background:#000;border-radius:16px;z-index:50;}
+  .screen{position:absolute;inset:0;background:var(--white);display:none;flex-direction:column;
+    opacity:0;transform:translateX(16px);transition:opacity .25s ease,transform .25s ease;}
+  .screen.active{display:flex;opacity:1;transform:translateX(0);}
+  .status-bar{height:44px;flex:0 0 44px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:14px;font-weight:600;color:var(--text);}
+  .status-icons{display:flex;align-items:center;gap:5px;}
+  .scroll{flex:1;overflow-y:auto;}
+  .scroll::-webkit-scrollbar{display:none;}
+  .px{padding-left:22px;padding-right:22px;}
+
+  h1.tt{font-size:23px;font-weight:700;color:var(--text);letter-spacing:-.3px;}
+  h2.tt{font-size:18px;font-weight:700;color:var(--text);letter-spacing:-.2px;}
+  p.sub{font-size:13.5px;color:var(--text-secondary);line-height:1.5;}
+
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:50px;border-radius:14px;
+    border:none;font-size:14.5px;font-weight:600;cursor:pointer;transition:transform .12s ease,filter .12s ease;}
+  .btn:active{transform:scale(.97);}
+  .btn-primary{background:var(--primary);color:#fff;}
+  .btn-danger{background:var(--danger);color:#fff;}
+  .btn-outline{background:#fff;color:var(--primary);border:1.5px solid var(--primary-light);}
+  .btn-ghost{background:transparent;color:var(--text-secondary);font-weight:600;}
+  .btn-sm{height:38px;font-size:12.5px;border-radius:10px;}
+  .btn-success{background:var(--success);color:#fff;}
+
+  .field{margin-bottom:13px;}
+  .field label{font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:6px;}
+  .field input, .field textarea, .field select{width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px 13px;
+    font-size:14px;color:var(--text);background:var(--surface);outline:none;font-family:inherit;}
+  .field input:focus, .field textarea:focus{border-color:var(--primary);background:#fff;}
+  .field textarea{resize:none;min-height:80px;}
+
+  .card{background:#fff;border:1px solid var(--border);border-radius:var(--radius-md);padding:15px;}
+  .icon{width:22px;height:22px;flex-shrink:0;}
+  .icon-sm{width:17px;height:17px;}
+
+  .bottom-nav{display:flex;align-items:center;justify-content:space-around;height:76px;flex:0 0 76px;
+    border-top:1px solid var(--border);background:#fff;padding-bottom:12px;}
+  .nav-item{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--text-muted);
+    font-size:10px;font-weight:600;background:none;border:none;cursor:pointer;width:54px;}
+  .nav-item.active{color:var(--primary);}
+  .nav-item .icon{width:21px;height:21px;}
+
+  #st-splash,#rp-splash{align-items:center;justify-content:center;background:linear-gradient(180deg,var(--primary) 0%,var(--primary-dark) 100%);}
+  .splash-logo{width:84px;height:84px;border-radius:22px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;margin-bottom:16px;}
+  .splash-logo .icon{width:44px;height:44px;color:#fff;}
+  .brand{color:#fff;font-size:25px;font-weight:800;letter-spacing:-.4px;text-align:center;}
+  .tag{color:rgba(255,255,255,.75);font-size:12.5px;margin-top:6px;text-align:center;}
+
+  .home-header{display:flex;align-items:center;justify-content:space-between;padding:14px 22px 6px;}
+  .avatar-circ{width:38px;height:38px;border-radius:50%;background:var(--primary-light);display:flex;align-items:center;justify-content:center;color:var(--primary);font-weight:700;font-size:13px;flex-shrink:0;}
+  .status-pill{display:flex;align-items:center;gap:10px;background:var(--success-light);border:1px solid #d3f2df;border-radius:var(--radius-md);padding:12px 15px;margin:14px 22px;}
+  .status-pill .dotpulse{width:9px;height:9px;border-radius:50%;background:var(--success);flex-shrink:0;}
+
+  .sos-launch{margin:18px 22px;background:linear-gradient(135deg,var(--danger),#b91c1c);border-radius:var(--radius-lg);padding:18px;display:flex;align-items:center;gap:14px;cursor:pointer;border:none;width:calc(100% - 44px);}
+  .sos-launch .ring{width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .sos-launch .ring .icon{width:25px;height:25px;color:#fff;}
+  .sos-launch .label{color:#fff;font-size:15px;font-weight:700;text-align:left;}
+  .sos-launch .sub{color:rgba(255,255,255,.8);font-size:11.5px;text-align:left;margin-top:2px;}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px;padding:2px 22px 8px;}
+  .qa-card{background:var(--surface);border-radius:var(--radius-md);padding:14px;display:flex;flex-direction:column;gap:9px;border:1px solid transparent;cursor:pointer;}
+  .qa-card .ic-wrap{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;}
+  .qa-card .ic-wrap .icon{width:19px;height:19px;}
+  .qa-card .t{font-size:13px;font-weight:700;color:var(--text);}
+  .qa-card .d{font-size:11px;color:var(--text-secondary);}
+
+  .section-label{padding:16px 22px 8px;font-size:12.5px;font-weight:700;color:var(--text);display:flex;justify-content:space-between;align-items:center;}
+  .section-label span.link{font-size:11.5px;font-weight:600;color:var(--primary);cursor:pointer;}
+  .row-item{display:flex;gap:12px;align-items:center;padding:12px 22px;border-bottom:1px solid var(--border);cursor:pointer;}
+  .row-item .ic-wrap{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .row-item .ic-wrap .icon{width:17px;height:17px;}
+  .row-item .t{font-size:13px;font-weight:600;color:var(--text);}
+  .row-item .d{font-size:11px;color:var(--text-secondary);margin-top:2px;}
+  .row-item .chev{margin-left:auto;color:var(--text-muted);}
+
+  .badge{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;font-size:10.5px;font-weight:700;}
+  .badge-info{background:var(--primary-light);color:var(--primary);}
+  .badge-caution{background:var(--warning-light);color:#b45309;}
+  .badge-urgent{background:var(--danger-light);color:var(--danger);}
+  .badge-new{background:var(--primary-light);color:var(--primary);}
+  .badge-ack{background:var(--warning-light);color:#b45309;}
+  .badge-dispatched{background:#f5f3ff;color:#7c3aed;}
+  .badge-resolved{background:var(--success-light);color:var(--success);}
+  .badge-verify{background:#f1f5f9;color:var(--text-secondary);}
+  .badge-pending{background:var(--warning-light);color:#b45309;}
+  .badge-approved{background:var(--success-light);color:var(--success);}
+  .badge-linked{background:var(--success-light);color:var(--success);}
+  .badge-sms{background:#f1f5f9;color:var(--text-secondary);}
+
+  .drawer-overlay{position:absolute;inset:0;background:rgba(15,23,42,.4);z-index:60;display:none;}
+  .drawer-overlay.show{display:block;}
+  .drawer{position:absolute;top:0;bottom:0;left:0;width:270px;background:#fff;z-index:61;
+    transform:translateX(-100%);transition:transform .25s ease;padding-top:50px;display:flex;flex-direction:column;}
+  .drawer.show{transform:translateX(0);}
+  .drawer-head{padding:0 22px 16px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:center;}
+  .drawer-item{display:flex;align-items:center;gap:13px;padding:12px 22px;font-size:13.5px;font-weight:600;color:var(--text);cursor:pointer;}
+  .drawer-item .icon{width:18px;height:18px;color:var(--text-secondary);}
+
+  .toast{position:absolute;left:22px;right:22px;bottom:94px;background:var(--text);color:#fff;
+    padding:12px 15px;border-radius:12px;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:9px;
+    z-index:80;opacity:0;transform:translateY(10px);transition:opacity .25s,transform .25s;pointer-events:none;}
+  .toast.show{opacity:1;transform:translateY(0);}
+  .toast .icon{width:15px;height:15px;color:var(--success);flex-shrink:0;}
+
+  .modal-overlay{position:absolute;inset:0;background:rgba(15,23,42,.55);z-index:70;display:none;align-items:flex-end;}
+  .modal-overlay.show{display:flex;}
+  .modal-sheet{background:#fff;width:100%;border-radius:24px 24px 0 0;padding:24px 22px 32px;text-align:center;}
+  .count-ring{width:92px;height:92px;border-radius:50%;border:5px solid var(--danger-light);border-top-color:var(--danger);
+    display:flex;align-items:center;justify-content:center;margin:4px auto 16px;font-size:28px;font-weight:800;color:var(--danger);}
+
+  #st-sos-active,#st-sos-active2{background:linear-gradient(180deg,#dc2626,#991b1b);}
+  .sos-pulse-wrap{width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;position:relative;margin:0 auto;}
+  .sos-pulse-wrap::before,.sos-pulse-wrap::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid rgba(255,255,255,.4);animation:sospulse 2s ease-out infinite;}
+  .sos-pulse-wrap::after{animation-delay:1s;}
+  @keyframes sospulse{0%{transform:scale(.7);opacity:1;}100%{transform:scale(1.5);opacity:0;}}
+  .sos-inner{width:90px;height:90px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;}
+  .sos-inner .icon{width:42px;height:42px;color:var(--danger);}
+  .sos-info-row{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.12);border-radius:14px;padding:12px 14px;margin:9px 22px;}
+  .sos-info-row .icon{width:17px;height:17px;color:#fff;flex-shrink:0;}
+  .sos-info-row .t{color:#fff;font-size:12.5px;font-weight:600;}
+  .sos-info-row .d{color:rgba(255,255,255,.75);font-size:11px;}
+
+  .flow-header{display:flex;align-items:center;gap:14px;padding:14px 22px 4px;}
+  .back-btn{width:34px;height:34px;border-radius:10px;background:var(--surface);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
+  .back-btn .icon{width:18px;height:18px;color:var(--text);}
+  .step-dots{display:flex;gap:6px;padding:16px 22px 4px;}
+  .step-dots .seg{flex:1;height:4px;border-radius:2px;background:var(--border);}
+  .step-dots .seg.on{background:var(--primary);}
+  .chip-grid{display:flex;flex-wrap:wrap;gap:9px;margin-top:6px;}
+  .chip{padding:10px 15px;border-radius:999px;border:1.5px solid var(--border);font-size:12.5px;font-weight:600;color:var(--text);cursor:pointer;background:#fff;}
+  .chip.on{background:var(--primary);border-color:var(--primary);color:#fff;}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:14px;background:var(--surface);border-radius:12px;margin-top:14px;}
+  .toggle-row .t{font-size:13px;font-weight:600;color:var(--text);}
+  .toggle-row .d{font-size:11px;color:var(--text-secondary);margin-top:2px;}
+  .switch{width:42px;height:25px;border-radius:14px;background:var(--border);position:relative;cursor:pointer;flex-shrink:0;transition:background .2s;}
+  .switch::after{content:"";position:absolute;width:19px;height:19px;border-radius:50%;background:#fff;top:3px;left:3px;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+  .switch.on{background:var(--primary);}
+  .switch.on::after{transform:translateX(17px);}
+  .upload-box{border:1.5px dashed var(--border);border-radius:14px;padding:22px;display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--text-secondary);font-size:12px;font-weight:600;margin-top:6px;}
+  .upload-box .icon{width:24px;height:24px;color:var(--text-muted);}
+  .review-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:12.5px;}
+  .review-row .k{color:var(--text-secondary);}
+  .review-row .v{color:var(--text);font-weight:600;text-align:right;max-width:60%;}
+
+  .success-wrap{align-items:center;justify-content:center;text-align:center;}
+  .check-circ{width:80px;height:80px;border-radius:50%;background:var(--success-light);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;}
+  .check-circ .icon{width:40px;height:40px;color:var(--success);}
+
+  .map-area{flex:1;position:relative;background:linear-gradient(#e7edf6,#e7edf6),
+    repeating-linear-gradient(0deg,transparent,transparent 39px,#d9e2ee 40px),
+    repeating-linear-gradient(90deg,transparent,transparent 39px,#d9e2ee 40px);overflow:hidden;}
+  .pin{position:absolute;width:25px;height:25px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.25);}
+  .pin .dot{width:8px;height:8px;border-radius:50%;background:#fff;transform:rotate(45deg);}
+  .pin.high{background:var(--danger);} .pin.med{background:var(--warning);} .pin.low{background:var(--success);}
+  .map-search{position:absolute;top:14px;left:16px;right:16px;background:#fff;border-radius:14px;padding:11px 14px;
+    display:flex;align-items:center;gap:10px;box-shadow:0 6px 18px rgba(15,23,42,.1);z-index:5;}
+  .map-search select,.map-search input{border:none;outline:none;font-size:12.5px;flex:1;background:transparent;color:var(--text);}
+  .map-search .icon{width:16px;height:16px;color:var(--text-muted);}
+  .legend{position:absolute;bottom:14px;left:14px;background:#fff;border-radius:12px;padding:10px 12px;box-shadow:0 6px 18px rgba(15,23,42,.1);z-index:5;}
+  .legend-row{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:600;color:var(--text-secondary);margin:3px 0;}
+  .legend-dot{width:8px;height:8px;border-radius:50%;}
+  .map-fab{position:absolute;bottom:16px;right:14px;width:48px;height:48px;border-radius:50%;background:var(--danger);
+    display:flex;align-items:center;justify-content:center;box-shadow:0 8px 18px rgba(220,38,38,.4);z-index:5;border:none;cursor:pointer;}
+  .map-fab .icon{width:21px;height:21px;color:#fff;}
+  .map-popup{position:absolute;left:16px;right:16px;bottom:78px;background:#fff;border-radius:14px;padding:13px;
+    box-shadow:0 10px 26px rgba(15,23,42,.18);z-index:6;display:none;}
+  .map-popup.show{display:block;}
+
+  .auth-logo{width:54px;height:54px;border-radius:16px;background:var(--primary-light);display:flex;align-items:center;justify-content:center;margin-bottom:16px;}
+  .auth-logo .icon{width:27px;height:27px;color:var(--primary);}
+  .divider{display:flex;align-items:center;gap:10px;color:var(--text-muted);font-size:11px;margin:16px 0;}
+  .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--border);}
+
+  .info-banner{display:flex;gap:10px;background:var(--primary-lighter);border:1px solid var(--primary-light);border-radius:12px;padding:12px 13px;margin:14px 0;}
+  .info-banner .icon{width:16px;height:16px;color:var(--primary);flex-shrink:0;margin-top:1px;}
+  .info-banner p{font-size:11.5px;color:var(--primary-dark);line-height:1.5;}
+
+  .med-banner{display:flex;gap:10px;background:var(--danger-light);border:1px solid #fde3e3;border-radius:12px;padding:13px;margin:12px 22px;}
+  .med-banner .icon{width:17px;height:17px;color:var(--danger);flex-shrink:0;}
+
+  /* ---- Admin desktop dashboard ---- */
+  .browser-frame{width:min(96vw,1180px);background:#fff;border-radius:16px;box-shadow:0 30px 60px -25px rgba(15,23,42,.35),0 0 0 1px #e2e8f0;overflow:hidden;}
+  .browser-top{height:42px;background:#f1f4f9;display:flex;align-items:center;gap:8px;padding:0 14px;border-bottom:1px solid var(--border);}
+  .dot3{width:10px;height:10px;border-radius:50%;}
+  .browser-url{flex:1;background:#fff;border-radius:8px;padding:5px 12px;font-size:11.5px;color:var(--text-secondary);margin-left:8px;border:1px solid var(--border);}
+  .admin-body{display:flex;height:680px;}
+  .admin-sidebar{width:220px;background:#0f172a;flex-shrink:0;display:flex;flex-direction:column;padding:20px 0;}
+  .admin-brand{display:flex;align-items:center;gap:10px;padding:0 20px 20px;color:#fff;font-weight:800;font-size:15px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:12px;}
+  .admin-brand .icon{width:20px;height:20px;color:#93b4ff;}
+  .admin-nav-item{display:flex;align-items:center;gap:12px;padding:11px 20px;color:#94a3b8;font-size:13px;font-weight:600;cursor:pointer;}
+  .admin-nav-item .icon{width:17px;height:17px;}
+  .admin-nav-item.active{color:#fff;background:rgba(255,255,255,.06);border-right:3px solid var(--primary);}
+  .admin-main{flex:1;overflow-y:auto;background:var(--surface);}
+  .admin-topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 28px;background:#fff;border-bottom:1px solid var(--border);}
+  .admin-content{padding:24px 28px;}
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px;}
+  .stat-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius-md);padding:18px;}
+  .stat-card .lbl{font-size:12px;color:var(--text-secondary);font-weight:600;}
+  .stat-card .val{font-size:26px;font-weight:800;color:var(--text);margin-top:6px;}
+  .stat-card .delta{font-size:11px;color:var(--success);font-weight:700;margin-top:4px;}
+  .panel{background:#fff;border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;margin-bottom:20px;}
+  .panel-head{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);}
+  .panel-head h3{font-size:14.5px;font-weight:700;color:var(--text);}
+  table.dt{width:100%;border-collapse:collapse;}
+  table.dt th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--text-muted);padding:11px 20px;border-bottom:1px solid var(--border);background:#fafbfd;}
+  table.dt td{padding:13px 20px;font-size:13px;color:var(--text);border-bottom:1px solid var(--border);}
+  table.dt tr:last-child td{border-bottom:none;}
+  .abtn{padding:7px 13px;border-radius:8px;border:1.5px solid var(--border);background:#fff;font-size:11.5px;font-weight:700;cursor:pointer;color:var(--text);}
+  .abtn.primary{background:var(--primary);border-color:var(--primary);color:#fff;}
+  .abtn.danger{background:#fff;border-color:#fecaca;color:var(--danger);}
+  .abtn.success{background:#fff;border-color:#bbf7d0;color:var(--success);}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .zone-map{height:280px;position:relative;border-radius:var(--radius-md);overflow:hidden;margin-bottom:16px;}
+  .desktop-field{margin-bottom:14px;}
+  .desktop-field label{font-size:12px;font-weight:700;color:var(--text-secondary);display:block;margin-bottom:6px;}
+  .desktop-field input,.desktop-field textarea,.desktop-field select{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13.5px;font-family:inherit;background:#fff;outline:none;}
+  .desktop-field input:focus,.desktop-field textarea:focus{border-color:var(--primary);}
+  .campus-tags{display:flex;gap:8px;flex-wrap:wrap;}
+  .ctag{padding:8px 13px;border-radius:999px;border:1.5px solid var(--border);font-size:12px;font-weight:600;cursor:pointer;}
+  .ctag.on{background:var(--primary-light);border-color:var(--primary);color:var(--primary);}
+</style>
+</head>
+<body>
+
+<div class="role-switch">
+  <button class="role-btn active" onclick="switchRole('app-student',this)">📱 Mobile App (Student & Responder)</button>
+  <button class="role-btn" onclick="switchRole('app-admin',this)">🖥️ Admin Dashboard (Web)</button>
+</div>
+
+<!-- ======================= STUDENT APP ======================= -->
+<div class="app-shell show" id="app-student">
+<div class="app-label">One app, two roles — the same login routes to Student Home or Responder Home depending on the account</div>
+<div class="device">
+  <div class="notch"></div>
+  <div class="screen-wrap" id="w-student">
+
+    <div class="screen active" id="st-splash">
+      <div class="splash-logo"><svg class="icon" data-i="shield" viewBox="0 0 24 24"></svg></div>
+      <div class="brand">Vikela</div>
+      <div class="tag">NMU Campus Safety Companion</div>
+    </div>
+
+    <div class="screen" id="st-login">
+      <div class="status-bar"><span>9:41</span><div class="status-icons"><svg class="icon-sm" data-i="signal" viewBox="0 0 24 24"></svg><svg class="icon-sm" data-i="wifi" viewBox="0 0 24 24"></svg><svg class="icon-sm" data-i="battery" viewBox="0 0 24 24"></svg></div></div>
+      <div class="scroll px" style="padding-top:26px;">
+        <div class="auth-logo"><svg class="icon" data-i="shield" viewBox="0 0 24 24"></svg></div>
+        <h1 class="tt">Welcome back</h1>
+        <p class="sub" style="margin:6px 0 18px;">One login for everyone — students and responders share this same screen. Where you land next depends on your account type.</p>
+        <div class="field"><label>Email</label><input type="text" placeholder="you@mandela.ac.za or you@staff.ac.za"></div>
+        <div class="field"><label>Password</label><input type="password" placeholder="••••••••"></div>
+        <div style="text-align:right;margin-bottom:18px;"><span style="font-size:12px;color:var(--primary);font-weight:600;">Forgot password?</span></div>
+        <button class="btn btn-primary" onclick="nav('w-student','st-home')">Log in as Student (demo)</button>
+        <button class="btn btn-outline" style="margin-top:10px;" onclick="nav('w-student','rp-home')">Log in as Responder (demo)</button>
+        <div class="divider">or</div>
+        <button class="btn btn-outline" onclick="nav('w-student','st-register')">Create a student account</button>
+        <button class="btn btn-ghost" style="margin-top:6px;" onclick="showToast('w-student','Responder accounts are created by admin, then activated here with the email admin registered you with')">I'm a responder activating an invite</button>
+      </div>
+    </div>
+
+    <div class="screen" id="st-register">
+      <div class="flow-header"><button class="back-btn" onclick="nav('w-student','st-login')"><svg class="icon" data-i="back" viewBox="0 0 24 24"></svg></button><h2 class="tt">Create account</h2></div>
+      <div class="scroll px" style="padding-top:14px;">
+        <div class="field"><label>Full name</label><input type="text" placeholder="Aviwe Ngcobo"></div>
+        <div class="field"><label>Student email</label><input type="text" placeholder="s221XXXXXX@mandela.ac.za"></div>
+        <div class="field"><label>Password</label><input type="password" placeholder="Create a password"></div>
+        <div class="field"><label>Date of birth</label><input type="text" placeholder="DD/MM/YYYY"></div>
+        <div class="field"><label>Primary campus</label>
+          <select><option>South Campus</option><option>North Campus</option><option>2nd Avenue Campus</option><option>Ocean Sciences Campus</option></select>
+        </div>
+        <button class="btn btn-primary" onclick="nav('w-student','st-register2')">Continue</button>
+      </div>
+    </div>
+
+    <div class="screen" id="st-register2">
+      <div class="flow-header"><button class="back-btn" onclick="nav('w-student','st-register')"><svg class="icon" data-i="back" viewBox="0 0 24 24"></svg></button><h2 class="tt">About you</h2></div>
+      <div class="scroll px" style="padding-top:14px;">
+        <p class="sub">This helps us understand safety patterns and route help to the right place. Gender and DOB are only ever seen by admin in aggregate — never browsable individually.</p>
+        <div class="field" style="margin-top:14px;"><label>Gender</label>
+          <select><option>Female</option><option>Male</option><option>Non-binary</option><option>Prefer not to say</option></select>
+        </div>
+        <div class="field"><label>Faculty & year of study</label><input type="text" placeholder="e.g. Engineering, 2nd year"></div>
+        <div class="field"><label>Residence type</label>
+          <select><option>NMU Residence</option><option>Off-campus — Summerstrand</option><option>Commuting from elsewhere</option></select>
+        </div>
+        <div class="field"><label>Residential address</label><textarea placeholder="Full address — used only if you need help, or by admin investigating an incident pattern"></textarea></div>
+        <div class="info-banner"><svg class="icon" data-i="lock" viewBox="0 0 24 24"></svg><p>Your address is treated like medical info: hidden by default, visible to a responder only while you have an active alert.</p></div>
+        <button class="btn btn-primary" onclick="nav('w-student','st-add-contact')">Continue</button>
+      </div>
+    </div>
+
+    <div class="screen" id="st-add-contact">
+      <div class="flow-header"><button class="back-btn" onclick="nav('w-student','st-register')"><svg class="icon" data-i="back" viewBox="0 0 24 24"></svg></button><h2 class="tt">Add trusted contact</h2></div>
+      <div class="scroll px" style="padding-top:14px;">
+        <p class="sub">Add at least 3 contacts (max 10). If they use Vikela, we'll link their account automatically.</p>
+        <div class="field" style="margin-top:14px;"><label>Name</label><input type="text" placeholder="Contact's name"></div>
+        <div class="field"><label>Relationship</label><input type="text" placeholder="e.g. Mother, Roommate, Friend"></div>
+        <div class="field"><label>Email (checked against Vikela accounts)</label><input type="text" placeholder="contact@email.com"></div>
+        <div class="field"><label>Phone number (used if they don't have the app)</label><input type="text" placeholder="+27 82 000 0000"></div>
+        <div class="info-banner"><svg class="icon" data-i="check" viewBox="0 0 24 24"></svg><p>This email matches an existing Vikela account — they'll get push alerts instead of SMS.</p></div>
+        <button class="btn btn-primary" onclick="showToast('w-student','Contact added — 1 of 3 minimum')">Save contact</button>
+        <button class="btn btn-ghost" style="margin-top:8px;" onclick="nav('w-student','st-safety-profile')">Done adding contacts</button>
+      </div>
+    </div>
+
+    <div class="screen" id="st-safety-profile">
+      <div class="flow-header"><button class="back-btn" onclick="nav('w-student','st-add-contact')"><svg class="icon" data-i="back" viewBox="0 0 24 24"></svg></button><h2 class="tt">Vehicle & mobility info</h2></div>
+      <div class="scroll px" style="padding-top:14px;">
+        <p class="sub">Both optional. Only visible to a responder during an active alert — never public, never browsable by admin.</p>
+        <h2 class="tt" style="font-size:14px;margin-top:16px;">Vehicle (optional)</h2>
+        <div class="field" style="margin-top:10px;"><label>Make & model</label><input type="text" placeholder="e.g. Toyota Etios"></div>
+        <div class="field"><label>Colour</label><input type="text" placeholder="e.g. White"></div>
+        <div class="field"><label>Number plate</label><input type="text" placeholder="e.g. NU 12 AB GP"></div>
+        <h2 class="tt" style="font-size:14px;margin-top:6px;">Mobility needs (optional)</h2>
+        <div class="field" style="margin-top:10px;"><label>Anything responders should know</label><textarea placeholder="e.g. Uses a wheelchair, limited mobility in left leg…"></textarea></div>
+        <button class="btn btn-primary" onclick="nav('w-student','st-home')">Finish setup</button>
+        <button class="btn btn-ghost" style="margin-top:8px;" onclick="nav('w-student','st-home')">Skip for now</button>
+      </div>
+    </div>
+
+    <div class="screen" id="st-schedule">
+      <div class="flow-header"><button class="back-btn" onclick="nav('w-student','st-home')"><svg class="icon" data-i="back" viewBox="0 0 24 24"></svg></button><h2 class="tt">Shuttle & library times</h2></div>
+      <div class="scroll px" style="padding-top:10px;">
+        <div class="section-label" style="padding-left:0;padding-right:0;">Campus shuttle</div>
+        <div class="row-item" style="padding-left:0;padding-right:0;"><div class="ic-wrap" style="background:var(--primary-light);"><svg class="icon-sm" data-i="car" viewBox="0 0 24 24" style="color:var(--primary)"></svg></div><div><div class="t">South ↔ North Campus</div><div class="d">Every 20 min · 07:00–21:00</div></div></div>
+        <div class="row-item" style="padding-left:0;padding-right:0;"><div class="ic-wrap" style="background:var(--primary-light);"><svg class="icon-sm" data-i="car" viewBox="0 0 24 24" style="color:var(--primary)"></svg></div><div><div class="t">South ↔ 2nd Avenue Campus</div><div class="d">Every 30 min · 07:00–20:00</div></div></div>
+        <div class="row-item" style="padding-left:0;padding-right:0;border-bottom:none;"><div class="ic-wrap" style="background:var(--primary-light);"><svg class="icon-sm" data-i="car" viewBox="0 0 24 24" style="color:var(--primary)"></svg></div><div><div class="t">South ↔ Ocean Sciences Campus</div><div class="d">Every 45 min · 07:30–17:30</div></div></div>
+        <div class="section-label" style="padding-left:0;padding-right:0;">Library hours</div>
+        <div class="row-item" style="padding-left:0;padding-right:0;"><div class="ic-wrap" style="background:var(--success-light);"><svg class="icon-sm" data-i="book" viewBox="0 0 24 24" style="color:var(--success)"></svg></div><div><div class="t">South Campus Library</div><div class="d">Mon–Thu 08:00–24:00 · Fri 08:00–18:00</div></div></div>
+        <div class="row-item" style="padding-left:0;padding-right:0;border-bottom:none;"><div class="ic-wrap" style="background:var(--success-light);"><svg class="icon-sm" data-i="book" viewBox="0 0 24 24" style="color:var(--success)"></svg></div><div><div class="t">2nd Avenue Library</div><div class="d">Mon–Fri 08:00–20:00</div></div></div>
+        <div class="info-banner"><svg class="icon" data-i="info" viewBox="0 0 24 24"></svg><p>Late-night walking group activity helps inform future shuttle time changes.</p></div>
+      </div>
+    </div>
+
+    <div class="screen" id="st-home">
+      <div class="status-bar"><span>9:41</span><div class="status-icons"><svg class="icon-sm" data-i="signal" viewBox="0 0 24 24"></svg><svg class="icon-sm" data-i="wifi" viewBox="0 0 24 24"></svg><svg class="icon-sm" data-i="battery" viewBox="0 0 24 24"></svg></div></div>
+      <div class="home-header">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="back-btn" onclick="openDrawer()"><svg class="icon-sm" data-i="menu" viewBox="0 0 24 24"></svg></button>
+          <div><div style="font-size:15px;font-weight:700;color:var(--text);">Hi, Aviwe</div><div style="font-size:11px;color:var(--text-secondary);">South Campus</div></div>
+        </div>
+        <button class="back-btn" onclick="nav('w-student','st-alerts')"><svg class="icon-sm" data-i="bell" viewBox="0 0 24 24"></svg></button>
+      </div>
+      <div class="scroll">
+        <div class="status-pill"><div class="dotpulse"></div><div><div style="font-size:12px;font-weight:700;color:#15803d;">No active alerts on South Campus</div><div style="font-size:10.5px;color:#3f7a53;">You're all set</div></div></div>
+
+        <button class="sos-launch" id="sos-hold-btn" onmousedown="startHold()" onmouseup="cancelHold()" onmouseleave="cancelHold()" ontouchstart="startHold()" ontouchend="cancelHold()">
+          <div class="ring"><svg class="icon" data-i="siren" viewBox="0 0 24 24"></svg></div>
+          <div><div class="label">Emergency SOS</div><div class="sub">Hold for 3 seconds to send an alert</div></div>
+        </button>
+
+        <div class="section-label">Quick actions</div>
+        <div class="grid2">
+          <div class="qa-card" onclick="nav('w-student','st-call')"><div class="ic-wrap" style="background:var(--primary-light);"><svg class="icon" data-i="phone" viewBox="0 0 24 24" style="color:var(--primary)"></svg></div><div class="t">Call security</div><div class="d">One-tap emergency numbers</div></div>
+          <div class="qa-card" onclick="nav('w-student','st-walk-hub')"><div class="ic-wrap" style="background:var(--success-light);"><svg class="icon" data-i="walk" viewBox="0 0 24 24" style="color:var(--success)"></svg></div><div class="t">Walk With Me</div><div class="d">Monitored journey</div></div>
+          <div class="qa-card" onclick="nav('w-student','st-map')"><div class="ic-wrap" style="background:#f5f3ff;"><svg class="icon" data-i="mappin" viewBox="0 0 24 24" style="color:#7c3aed"></svg></div><div class="t">Safety map</div><div class="d">Campus + Summerstrand</div></div>
+          <div class="qa-card" onclick="nav('w-student','st-report1')"><div class="ic-wrap" style="background:var(--warning-light);"><svg class="icon" data-i="flag" viewBox="0 0 24 24" style="color:var(--warning)"></svg></div><div class="t">Report a concern</div><div class="d">Share what you saw</div></div>
+        </div>
+        <p class="sub" style="padding:14px 22px 6px;text-align:center;">More — trusted contacts, groups, resources, shuttle & library times — is in the menu, top left.</p>
+      </div>
+      <div class="bottom-nav">
+        <button class="nav-item active"><svg class="icon" data-i="home" viewBox="0 0 24 24"></svg>Home</button>
+        <button class="nav-item" onclick="nav('w-student','st-map')"><svg class="icon" data-i="mappin" viewBox="0 0 24 24"></svg>Map</button>
+        <button class="nav-item" onclick="nav('w-student','st-profile')"><svg class="icon" data-i="user" viewBox="0 0 24 24"></svg>Profile</button>
+      </div>
+
+      <div class="drawer-overlay" id="st-drawer-overlay" onclick="closeDrawer()"></div>
+      <div class="drawer" id="st-drawer">
+        <div class="drawer-head"><div class="avatar-circ">AN</div><div><div style="font-size:14px;font-weight:700;">Aviwe Ngcobo</div><div style="font-size:11px;color:var(--text-secondary);" onclick="nav('w-student','st-profile')">View profile</div></div></div>
+        <div style="padding-top:8px;">
+          <div class="drawer-item" onclick="nav('w-student','st-home')"><svg class="icon" data-i="home" viewBox="0 0 24 24"></svg>Home</div>
+          <div class="drawer-item" onclick="nav('w-student','st-contacts')"><svg class="icon" data-i="users" viewBox="0 0 24 24"></svg>Trusted contacts</div>
+          <div class="drawer-item" onclick="nav('w-student','st-groups')"><svg class="icon" data-i="group" viewBox="0 0 24 24"></svg>Walking groups</div>
+          <div class="drawer-item" onclick="nav('w-student','st-resources')"><svg class="icon" data-i="book" viewBox="0 0 24 24"></svg>Safety resources</div>
+          <div class="drawer-item" onclick="nav('w-student','st-schedule')"><svg class="icon" data-i="car" viewBox="0 0 24 24"></svg>Shuttle & library times</div>
+          <div class="drawer-item" onclick="nav('w-student','st-privacy')"><svg class="icon" data-i="lock" viewBox="0 0 24 24"></svg>Privacy notice</div>
+          <div class="drawer-item" onclick="nav('w-student','st-profile')"><svg class="icon" data-i="settings" viewBox="0 0 24 24"></svg>Settings</div>
+        </div>
+      </div>
+
+      <div class="modal-overlay" id="sos-modal">
+        <div class="modal-sheet">
+          <div class="count-ring"><span id="count-num">3</span></div>
+          <h2 class="tt">Hold to send SOS…</h2>
+          <p class="sub" style="margin:8px 0 18px;">Campus security and your 3 trusted contacts will be alerted with your location.</p>
+          <button class="btn btn-outline" onclick="cancelSosConfirm()">Release to cancel</button>
+        </div>
+      </div>
+      <div class="toast" id="toast-student"><svg class="icon" data-i="check" viewBox="0 0 24 24"></svg><span id="toast-text-student">Done</span></div>
+    </div>
+
+    <div class="screen" id="st-sos-active">
+      <div class="status-bar" style="color:#fff;"><span>9:41</span><div class="status-icons"><svg class="icon-sm" data-i="signal" viewBox="0 0 24 24" style="color:#fff"></svg><svg class="icon-sm" data-i="wifi" viewBox="0 0 24 24" style="color:#fff"></svg><svg class="icon-sm" data-i="battery" viewBox="0 0 24 24" style="color:#fff"></svg></div></div>
+      <div class="scroll" style="display:flex;flex-direction:column;align-items:center;padding-top:24px;">
+        <div style="color:#fff;font-size:19px;font-weight:800;margin-bottom:22px;">Help request sent</div>
+        <div class="sos-pulse-wrap"><div class="sos-inner"><svg class="icon" data-i="siren" viewBox="0 0 24 24"></svg></div></div>
+        <div style="color:#fff;font-size:13.5px;font-weight:600;margin-top:22px;">Stay where you are if it is safe to do so</div>
+        <div style="color:rgba(255,255,255,.75);font-size:11.5px;margin-top:4px;">Elapsed time: 00:22</div>
+
+        <div class="sos-info-row" style="width:calc(100% - 44px);"><svg class="icon" data-i="mappin" viewBox="0 0 24 24"></svg><div><div class="t">Location shared</div><div class="d">South Campus, near Library Walkway</div></div></div>
+        <div class="sos-info-row" style="width:calc(100% - 44px);"><svg class="icon" data-i="users" viewBox="0 0 24 24"></svg><div><div class="t">3 trusted contacts notified</div><div class="d">Nomvula, Sipho, Mom</div></div></div>
+        <div class="sos-info-row" style="width:calc(100% - 44px);"><svg class="icon" data-i="check" viewBox="0 0 24 24"></svg><div><div class="t">Campus security notified</div><div class="d">South Campus responder team</div></div></div>
+      </div>
+      <div class="px" style="padding-bottom:28px;padding-top:10px;display:flex;flex-direction:column;gap:9px;">
+        <button class="btn" style="background:rgba(255,255,255,.18);color:#fff;" onclick="showToast('w-student','Alert cancelled — you can send another anytime')">This was accidental — false alarm</button>
+        <button class="btn" style="background:#fff;color:var(--danger);" onclick="nav('w-student','st-home')">I'm safe now — end alert</button>
+      </div>
+    </div>
+
+    <div class="screen" id="st-call">
+      <div class="flow-header"><button class="back-btn" onclick="nav('w-student','st-home')"><svg class="icon" data-i="back" viewBox="0 0 24 24"></svg></button><h2 class="tt">Call for help</h2></div>
+      <div class="scroll px" style="padding-top:14px;">
+        <div class="row-item" style="padding-left:0;padding-right:0;" onclick="showToast('w-student','Calling Campus Security…')"><div class="ic-wrap" style="background:var(--danger-light);"><svg class="icon" data-i="phone" viewBox="0 0 24 24" style="color:var(--danger)"></svg></div><div><div class="t">Campus Security</div><div class="d">24/7 · all campuses</div></div></div>
+        <div class="row-item" style="padding-left:0;padding-right:0;" onclick="showToast('w-student','Calling Residence Support…')"><div class="ic-wrap" style="background:var(--primary-light);"><svg class="icon" data-i="phone" viewBox="0 0 24 24" style="color:var(--primary)"></svg></div><div><div class="t">Residence Support</div><div class="d">For students in res</div></div></div>
+        <div class="row-item" style="padding-left:0;padding-right:0;border-bottom:none;" onclick="showToast('w-student','Calling Student Wellness…')"><div class="ic-wrap" style="background:var(--success-light);"><svg class="icon" data-i="phone" viewBox="0 0 24 24" style="color:var(--success)"></svg></div><div><div class="t">Counselling & Wellness</div><div class="d">Confidential support</div></div></div>
+        <div class="info-banner" style="margin-top:20px;"><svg class="icon" data-i="info" viewBox="0 0 24 24"></svg><p>No signal? These numbers still work as a normal phone call, even with no data connection.</p></div>
+      </div>
+    </div>
+
+    <div class="screen" id="st-walk-hub">
+      <div class="flow-header"><button class="back-btn" onclick="nav('w-student','st-home')"><svg class="icon" data-i="back" viewBox="0 0 24 24"></svg></button><h2 class="tt">Walk With Me</h2></div>
+      <div class="scroll px" style="padding-top:14px;">
+        <p class="sub">Choose how you'd like to feel safer on your journey.</p>
+        <div class="card" style="margin-top:16px;cursor:pointer;" onclick="nav('w-student','st-walk-invite')">
+          <div style="display:flex;gap:12px;align-items:flex-start;">
+            <div class="ic-wrap" style="background:var(--success-light);width:40px;height:40px;"><svg class="icon" data-i="users" viewBox="0 0 24 24" style="color:var(--success)"></svg></div>
+            <div><div class="t" style="font-size:14px;">Invite a companion</div><div class="d" style="margin-top:3px;">A trusted contact accepts and watches your live location until you arrive.</div></div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:12px;cursor:pointer;" onclick="nav('w-student','st-walk-timer')">
+          <div style="display:flex;gap:12px;align-items:flex-start;">
+            <div class="ic-wrap" style="background:var(--primary-light);width:40px;height:40px;"><svg class="icon" data-i="walk" viewBox="0 0 24 24" style="color:var(--primary)"></svg></div>
+            <div><div class="t" style="font-size:14px;">Monitor my own journey</div><div class="d" style="margin-top:3px;">Set a timer. If you don't check in, we notify your contacts and security.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen" id="st-walk-invite">
+      <div class="flow-header"><button class="back-btn" onclick="nav('w-student','st-walk-hub')"><svg class="icon" data-i="back" viewBox="0 0 24 24"></svg></button><h2 class="tt">Invite a companion</h2></div>
+      <div class="scroll px" style="padding-top:14px;">
+        <div class="field"><label>Choose contact</label><select><option>Nomvula (Roommate)</option><option>Sipho (Friend)</option><option>Mom</option></select></div>
+        <div class="field"><label>Destination</label><input type="text" placeholder="e.g. North Campus Residence"></div>
+        <div class="field"><label>Estimated arrival</label><input type="text" placeholder="e.g. 15 minutes"></div>
+        <button class="btn btn-primary" onclick="nav('w-student','st-walk-active')">Send invite</button>
+      </div>
+    </div>
+
+    <div class="screen" id="st-walk-timer">
+      <div class="flow-header"><button class="back-btn" onclick="nav('w-student','st-walk-hub')"><svg class="icon" data-i="back" viewBox="0 0 24 24"></svg></button><h2 class="tt">Monitor my journey</h2></div>
+      <div class="scroll px" style="padding-top:14px;">
+        <div class="field"><label>Destination</label><input type="text" placeholder="e.g. South Campus Library"></div>
+        <div class="field"><label>Timer</label><input type="text" placeholder="e.g. 12 minutes"></div>
+        <p class="sub">If your timer runs out without a check-in, we'll ask if you're okay — and escalate to a full alert after 5 more minutes if there's no response.</p>
+        <button class="btn btn-primary" onclick="nav('w-student','st-walk-active')">Start journey</button>
+      </div>
+    </div>
+
+    <div class="screen" id="st-walk-active">
+      <div class="flow-header"><h2 class="tt">Journey in progress</h2></div>
+      <div class="map-area" style="flex:1;">
+        <div class="pin low" style="top:120px;left:100px;"><div class="dot"></div></div>
+        <div class="pin low" style="top:300px;left:220px;"><div class="dot"></div></div>
+      </div>
+      <div class="px" style="padding:14px 22px 24px;">
+        <div class="card" style="margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div><div class="t" style="font-size:13px;">Time remaining</div><div style="font-size:22px;font-weight:800;color:var(--primary);">08:42</div></div>
+            <button class="abtn" onclick="showToast('w-student','10 minutes added to your timer')">+ Extend 10 min</button>
+          </div>
+        </div>
+        <button class="btn btn-success" onclick="showToast('w-student','Arrival confirmed — journey ended safely')">I've arrived safely</button>
+      </div>
+    </div>
+
+    <div class="screen" id="st-report1">
+      <div class="flow-header"><button class="back-btn" onclick="nav('w-student','st-home')"><svg class="icon" data-i="close" viewBox="0 0 24 24"></svg></button><h2 class="tt">Report a concern</h2></div>
+      <div class="step-dots"><div class="seg on"></div><div class="seg"></div></div>
+      <div class="scroll px" style="padding-top:14px;">
+        <h2 class="tt" style="font-size:15.5px;">What happened, and where?</h2>
+        <p class="sub" style="margin:4px 0 12px;">Select a category and add the details.</p>
+        <div class="chip-grid">
+          <div class="chip on" onclick="chipSelect(this)">Suspicious activity</div>
+          <div class="chip" onclick="chipSelect(this)">Harassment</div>
+          <div class="chip" onclick="chipSelect(this)">Theft</div>
+          <div class="chip" onclick="chipSelect(this)">Broken lighting</div>
+          <div class="chip" onclick="chipSelect(this)">Unsafe area</div>
+          <div class="chip" onclick="chipSelect(this)">Other</div>
+        </div>
+        <div class="field" style="margin-top:16px;"><label>Location</label><input type="text" value="South Campus, near Parking Zone B"></div>
+        <div class="field"><label>Description</label><textarea placeholder="Share as much detail as you're comfortable with…"></textarea></div>
+        <div class="field"><label>Attach a photo (optional)</label><div class="upload-box"><svg class="icon" data-i="camera" viewBox="0 0 24 24"></svg>Tap to add a photo</div></div>
+        <div class="toggle-row"><div><div class="t">Report anonymously</div><div class="d">Your name won't be attached to this report</div></div><div class="switch" onclick="toggleSwitch(this)"></div></div>
+      </div>
+      <div class="px" style="padding-bottom:24px;"><button class="btn btn-primary" onclick="nav('w-student','st-report3')">Review report</button></div>
+    </div>
+
+    <div class="screen" id="st-report3">
+      <div class="flow-header"><button class="back-btn" onclick="nav('w-student','st-report1')"><svg class="icon" data-i="back" viewBox="0 0 24 24"></svg></button><h2 class="tt">Report a concern</h2></div>
+      <div class="step-dots"><div class="seg on"></div><div class="seg on"></div></div>
+      <div class="scroll px" style="padding-top:14px;">
+        <h2 class="tt" style="font-size:15.5px;">Review and send</h2>
+        <div class="card" style="margin-top:14px;">
+          <div class="review-row"><div class="k">Subject</div><div class="v">Suspicious activity</div></div>
+          <div class="review-row"><div class="k">Location</div><div class="v">South Campus, Parking Zone B</div></div>
+          <div class="review-row"><div class="k">Anonymous</div><div class="v">Yes</div></div>
+          <div class="review-row" style="border-bottom:none;"><div class="k">Attachments</div><div class="v">1 photo</div></div>
+        </div>
+        <p class="sub" style="margin-top:12px;">Your report can help improve campus safety. Thank you for speaking up.</p>
+      </div>
+      <div class="px" style="padding-bottom:24px;"><button class="btn btn-primary" onclick="nav('w-student','st-report-success')">Share this concern</button></div>
+    </div>
+
+    <div class="screen success-wrap" id="st-report-success">
+      <div class="check-circ"><svg class="icon" data-i="check" viewBox="0 0 24 24"></svg></div>
+      <h1 class="tt">Thank you for reporting</h1>
+      <p class="sub" style="margin-top:8px;padding:0 26px;">Reference #VK-0472. Here's what to do if you're still feeling unsafe.</p>
+      <div class="px" style="padding-top:24px;width:100%;display:flex;flex-direction:column;gap:9px;">
+        <button class="btn btn-outline" onclick="nav('w-student','st-resources')">View safety guidance</button>
+        <button class="btn btn-primary" onclick="nav('w-student','st-home')">Back to home</button>
+      </div>
+    </div>
+
+    <div class="screen" id="st-map" style="background:#e7edf6;">
+      <div class="status-bar"><span>9:41</span><div class="status-icons"><svg class="icon-sm" data-i="signal" viewBox="0 0 24 24"></svg><svg class="icon-sm" data-i="wifi" viewBox="0 0 24 24"></svg><svg class="icon-sm" data-i="battery" viewBox="0 0 24 24"></svg></div></div>
+      <div class="map-area">
+        <div class="map-search"><svg class="icon" data-i="mappin" viewBox="0 0 24 24"></svg>
+          <select><option>South Campus</option><option>North Campus</option><option>2nd Avenue Campus</option><option>Ocean Sciences Campus</option></select>
+          <svg class="icon" data-i="search" viewBox="0 0 24 24" onclick="nav('w-student','st-qr')" style="cursor:pointer;"></svg>
+        </div>
+        <div class="pin high" style="top:150px;left:90px;" onclick="showPopup('Parking Zone B — high risk','On campus · covered by NMU Campus Security')"><div class="dot"></div></div>
+        <div class="pin high" style="top:250px;left:230px;" onclick="showPopup('Rear pathway — high risk','On campus · covered by NMU Campus Security')"><div class="dot"></div></div>
+        <div class="pin med" style="top:320px;left:130px;" onclick="showPopup('Sports field walkway','On campus · low foot traffic at night')"><div class="dot"></div></div>
+        <div class="pin low" style="top:420px;left:250px;" onclick="showPopup('Library Walkway — safe','On campus · well lit, regularly patrolled')"><div class="dot"></div></div>
+        <div class="pin high" style="top:200px;left:330px;" onclick="showPopup('Bird St corner — high risk','Off campus, Summerstrand · covered by Security Company (24/7)')"><div class="dot"></div></div>
+        <div class="pin med" style="top:460px;left:110px;" onclick="showPopup('Beach Rd digs cluster','Off campus, Summerstrand · covered by Security Company')"><div class="dot"></div></div>
+        <div class="legend">
+          <div class="legend-row"><div class="legend-dot" style="background:var(--danger);"></div>High risk</div>
+          <div class="legend-row"><div class="legend-dot" style="background:var(--warning);"></div>Moderate</div>
+          <div class="legend-row"><div class="legend-dot" style="background:var(--success);"></div>Safe / patrolled</div>
+        </div>
+        <button class="map-fab" onclick="showToast('w-student','SOS ready — hold the button on Home to send')"><svg class="icon" data-i="siren" viewBox="0 0 24 24"></svg></button>
+        <div class="map-popup" id="map-popup">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div><div style="font-size:13px;font-weight:700;" id="popup-title">Zone</div><div style="font-size:11px;color:var(--text-secondary);margin-top:2px;" id="popup-sub">Detail</div></div>
+            <button class="back-btn" style="width:26px;height:26px;" onclick="hidePopup()"><svg class="icon-sm" data-i="close" viewBox="0 0 24 24"></svg></button>
+          </div>
+        </div>
+      </div>
+      <div class="bottom-nav">
+        <button class="nav-item" onclick="nav('w-student','st-home')"><svg class="icon" data-i="home" viewBox="0 0 24 24"></svg>Home</button>
+        <button class="nav-item active"><svg class="icon" data-i="mappin" viewBox="0 0 24 24"></svg>Map</button>
+        <button class="nav-item" onclick="nav('w-student','st-profile')"><svg class="icon" data-i="user" viewBox="0 0 24 24"></svg>Profile</button>
+      </div>
+    </div>
+
+    <div class="screen" id="st-qr">
+      <div class="flow-header"><button class="back-btn" onclick="nav('w-student','st-map')"><svg class="icon" data-i="back" viewBox="0 0 24 24"></svg></button><h2 class="tt">Scan QR point</h2></div>
+      <div class="scroll px" style="display:flex;flex-direction:column;align-items:center;padding-top:40px;text-align:center;">
+        <div style="width:220px;height:220px;border:2px dashed var(--border);border-radius:20px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;">
+          <svg class="icon" data-i="qr" viewBox="0 0 24 24" style="width:70px;height:70px;color:var(--text-muted);"></svg>
+        </div>
+        <p class="sub">Point your camera at a campus emergency QR point to instantly pre-fill your location for a faster alert.</p>
+      </div>
+    </div>
+
+    <div class="screen" id="st-contacts">
+      <div class="flow-header"><button class="back-btn" onclick="nav('w-student','st-home')"><svg class="icon" data-i="back" viewBox="0 0 24 24"></svg></button><h2 class="tt">Trusted contacts</h2></div>
+      <div class="scroll px" style="padding-top:10px;">
+        <p class="sub">3 of 10 added. You can add up to 7 more.</p>
+        <div class="card" style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;">
+          <div><div class="t" style="font-size:13.5px;">Nomvula Dlamini</div><div class="d" style="margin-top:2px;">Roommate</div></div>
+          <span class="badge badge-linked">App linked</span>
+        </div>
+        <div class="card" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;">
+          <div><div class="t" style="font-size:13.5px;">Sipho Radebe</div><div class="d" style="margin-top:2px;">Friend</div></div>
+          <span class="badge badge-sms">SMS only</span>
+        </div>
+        <div class="card" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;">
+          <div><div class="t" style="font-size:13.5px;">Mom</div><div class="d" style="margin-top:2px;">Parent</div></div>
+          <span class="badge badge-sms">SMS only</span>
+        </div>
+        <p class="sub" style="margin-top:14px;">Contacts can't remove themselves — only you can remove someone from this list.</p>
+      </div>
+      <div class="px" style="padding-bottom:24px;"><button class="btn btn-primary" onclick="nav('w-student','st-add-contact')">+ Add contact</button></div>
+    </div>
+
+    <div class="screen" id="st-alerts">
+      <div class="status-bar"><span>9:41</span><div class="status-icons"><svg class="icon-sm" data-i="signal" viewBox="0 0 24 24"></svg><svg class="icon-sm" data-i="wifi" viewBox="0 0 24 24"></svg><svg class="icon-sm" data-i="battery" viewBox="0 0 24 24"></svg></div></div>
+      <div class="flow-header" style="padding-top:2px;"><h2 class="tt">Safety alerts</h2></div>
+      <div class="scroll px" style="padding-top:8px;">
+        <div class="row-item" style="padding-left:0;padding-right:0;"><div class="ic-wrap" style="background:var(--warning-light);"><svg class="icon-sm" data-i="warning" viewBox="0 0 24 24" style="color:var(--warning)"></svg></div><div><div class="t">Caution: Low lighting near parking</div><div class="d">South Campus · 40 min ago</div></div><span class="badge badge-caution" style="margin-left:auto;">Caution</span></div>
+        <div class="row-item" style="padding-left:0;padding-right:0;"><div class="ic-wrap" style="background:var(--primary-light);"><svg class="icon-sm" data-i="info" viewBox="0 0 24 24" style="color:var(--primary)"></svg></div><div><div class="t">Load shedding — Stage 2 tonight</div><div class="d">All campuses · 2h ago</div></div><span class="badge badge-info" style="margin-left:auto;">Info</span></div>
+        <div class="row-item" style="padding-left:0;padding-right:0;border-bottom:none;"><div class="ic-wrap" style="background:var(--danger-light);"><svg class="icon-sm" data-i="warning" viewBox="0 0 24 24" style="color:var(--danger)"></svg></div><div><div class="t">Access road closed — Ocean Sciences</div><div class="d">Ocean Sciences Campus · yesterday</div></div><span class="badge badge-urgent" style="margin-left:auto;">Urgent</span></div>
+      </div>
+      <div class="bottom-nav">
+        <button class="nav-item" onclick="nav('w-student','st-home')"><svg class="icon" data-i="home" viewBox="0 0 24 24"></svg>Home</button>
+        <button class="nav-item" onclick="nav('w-student','st-map')"><svg class="icon" data-i="mappin" viewBox="0 0 24 24"></svg>Map</button>
+        <button class="nav-item" onclick="nav('w-student','st-profile')"><svg class="icon" data-i="user" viewBox="0 0 24 24"></svg>Profile</button>
+      </div>
+    </div>
+
+    <div class="screen" id="st-resources">
+      <div class="flow-header"><button class="back-btn" onclick="nav('w-student','st-home')"><svg class="icon" data-i="back" viewBox="0 0 24 24"></svg></button><h2 class="tt">Safety resources</h2></div>
+      <div class="scroll px" style="padding-top:10px;">
+        <div class="row-item" style="padding-left:0;padding-right:0;"><div class="ic-wrap" style="background:var(--danger-light);"><svg class="icon-sm" data-i="siren" viewBox="0 0 24 24" style="color:var(--danger)"></svg></div><div><div class="t">What to do in an emergency</div><div class="d">Step-by-step guidance</div></div><svg class="icon-sm chev" data-i="chevron" viewBox="0 0 24 24"></svg></div>
+        <div class="row-item" style="padding-left:0;padding-right:0;"><div class="ic-wrap" style="background:var(--primary-light);"><svg class="icon-sm" data-i="walk" viewBox="0 0 24 24" style="color:var(--primary)"></svg></div><div><div class="t">Safe walking tips</div><div class="d">Routes, timing, awareness</div></div><svg class="icon-sm chev" data-i="chevron" viewBox="0 0 24 24"></svg></div>
+        <div class="row-item" style="padding-left:0;padding-right:0;"><div class="ic-wrap" style="background:var(--success-light);"><svg class="icon-sm" data-i="users" viewBox="0 0 24 24" style="color:var(--success)"></svg></div><div><div class="t">Supporting a friend who feels unsafe</div><div class="d">How to help without judgement</div></div><svg class="icon-sm chev" data-i="chevron" viewBox="0 0 24 24"></svg></div>
+        <div class="row-item" style="padding-left:0;padding-right:0;"><div class="ic-wrap" style="background:var(--warning-light);"><svg class="icon-sm" data-i="car" viewBox="0 0 24 24" style="color:var(--warning)"></svg></div><div><div class="t">Transport & lift safety</div><div class="d">Shuttles, taxis, lifts home</div></div><svg class="icon-sm chev" data-i="chevron" viewBox="0 0 24 24"></svg></div>
+        <div class="row-item" style="padding-left:0;padding-right:0;border-bottom:none;"><div class="ic-wrap" style="background:#f5f3ff;"><svg class="icon-sm" data-i="chat" viewBox="0 0 24 24" style="color:#7c3aed"></svg></div><div><div class="t">Community tips</div><div class="d">Verified by NMU staff</div></div><svg class="icon-sm chev" data-i="chevron" viewBox="0 0 24 24"></svg></div>
+      </div>
+    </div>
+
+    <div class="screen" id="st-groups">
+      <div class="flow-header"><button class="back-btn" onclick="nav('w-student','st-home')"><svg class="icon" data-i="back" viewBox="0 0 24 24"></svg></button><h2 class="tt">Walking groups</h2></div>
+      <div class="scroll px" style="padding-top:10px;">
+        <div class="card" style="margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;"><div class="t" style="font-size:13.5px;">4pm Library Walk</div><span class="badge badge-approved">Approved</span></div>
+          <div class="d" style="margin-top:4px;">Library → North Res · Daily 16:00 · 6 members</div>
+          <button class="abtn" style="margin-top:10px;" onclick="showToast('w-student','Request to join sent')">Join group</button>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;"><div class="t" style="font-size:13.5px;">Late Study Group Walk</div><span class="badge badge-pending">Pending approval</span></div>
+          <div class="d" style="margin-top:4px;">2nd Ave → South Res · Weeknights 22:00 · 2 members</div>
+        </div>
+      </div>
+      <div class="px" style="padding-bottom:24px;"><button class="btn btn-primary" onclick="nav('w-student','st-create-group')">+ Create a group</button></div>
+    </div>
+
+    <div class="screen" id="st-create-group">
+      <div class="flow-header"><button class="back-btn" onclick="nav('w-student','st-groups')"><svg class="icon" data-i="back" viewBox="0 0 24 24"></svg></button><h2 class="tt">Create a group</h2></div>
+      <div class="scroll px" style="padding-top:14px;">
+        <div class="field"><label>Group name</label><input type="text" placeholder="e.g. 4pm Study Walk"></div>
+        <div class="field"><label>Description</label><textarea placeholder="Who this is for and when you'll meet"></textarea></div>
+        <div class="field"><label>Route / destination</label><input type="text" placeholder="e.g. Library to North Residence"></div>
+        <div class="field"><label>Time</label><input type="text" placeholder="e.g. 16:00, daily"></div>
+        <div class="info-banner"><svg class="icon" data-i="info" viewBox="0 0 24 24"></svg><p>Every group needs admin approval before it becomes visible to other students.</p></div>
+        <button class="btn btn-primary" onclick="showToast('w-student','Group submitted for admin approval')">Submit for approval</button>
+      </div>
+    </div>
+
+    <div class="screen" id="st-profile">
+      <div class="status-bar"><span>9:41</span><div class="status-icons"><svg class="icon-sm" data-i="signal" viewBox="0 0 24 24"></svg><svg class="icon-sm" data-i="wifi" viewBox="0 0 24 24"></svg><svg class="icon-sm" data-i="battery" viewBox="0 0 24 24"></svg></div></div>
+      <div class="scroll px" style="padding-top:18px;">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+          <div class="avatar-circ" style="width:54px;height:54px;font-size:17px;">AN</div>
+          <div><div style="font-size:16px;font-weight:700;">Aviwe Ngcobo</div><div style="font-size:11.5px;color:var(--text-secondary);">South Campus · s221045678</div></div>
+        </div>
+        <div class="drawer-item" style="padding-left:0;padding-right:0;" onclick="nav('w-student','st-contacts')"><svg class="icon" data-i="users" viewBox="0 0 24 24"></svg>Trusted contacts</div>
+        <div class="drawer-item" style="padding-left:0;padding-right:0;" onclick="nav('w-student','st-medical')"><svg class="icon" data-i="medical" viewBox="0 0 24 24"></svg>Medical info card</div>
+        <div class="drawer-item" style="padding-left:0;padding-right:0;" onclick="nav('w-student','st-safety-profile')"><svg class="icon" data-i="car" viewBox="0 0 24 24"></svg>Vehicle & mobility info</div>
+        <div class="drawer-item" style="padding-left:0;padding-right:0;" onclick="showToast('w-student','Opening notification settings')"><svg class="icon" data-i="bell" viewBox="0 0 24 24"></svg>Notification preferences</div>
+        <div class="drawer-item" style="padding-left:0;padding-right:0;" onclick="toggleDark(this)"><svg class="icon" data-i="settings" viewBox="0 0 24 24"></svg>Dark / light mode</div>
+        <div class="drawer-item" style="padding-left:0;padding-right:0;" onclick="nav('w-student','st-privacy')"><svg class="icon" data-i="lock" viewBox="0 0 24 24"></svg>Privacy notice</div>
+        <div class="drawer-item" style="padding-left:0;padding-right:0;color:var(--danger);" onclick="nav('w-student','st-login')"><svg class="icon" data-i="logout" viewBox="0 0 24 24" style="color:var(--danger)"></svg>Log out</div>
+      </div>
+      <div class="bottom-nav">
+        <button class="nav-item" onclick="nav('w-student','st-home')"><svg class="icon" data-i="home" viewBox="0 0 24 24"></svg>Home</button>
+        <button class="nav-item" onclick="nav('w-student','st-map')"><svg class="icon" data-i="mappin" viewBox="0 0 24 24"></svg>Map</button>
+        <button class="nav-item active"><svg class="icon" data-i="user" viewBox="0 0 24 24"></svg>Profile</button>
+      </div>
+    </div>
+
+    <div class="screen" id="st-medical">
+      <div class="flow-header"><button class="back-btn" onclick="nav('w-student','st-profile')"><svg class="icon" data-i="back" viewBox="0 0 24 24"></svg></button><h2 class="tt">Medical info card</h2></div>
+      <div class="scroll px" style="padding-top:14px;">
+        <p class="sub">Only visible to responders while you have an active alert. Optional.</p>
+        <div class="field" style="margin-top:14px;"><label>Allergies</label><input type="text" placeholder="e.g. Penicillin"></div>
+        <div class="field"><label>Medical conditions</label><input type="text" placeholder="e.g. Asthma, Epilepsy"></div>
+        <div class="field"><label>Blood type</label><input type="text" placeholder="e.g. O+"></div>
+        <button class="btn btn-primary" onclick="showToast('w-student','Medical info saved')">Save</button>
+      </div>
+    </div>
+
+    <div class="screen" id="st-privacy">
+      <div class="flow-header"><button class="back-btn" onclick="nav('w-student','st-home')"><svg class="icon" data-i="back" viewBox="0 0 24 24"></svg></button><h2 class="tt">Privacy notice</h2></div>
+      <div class="scroll px" style="padding-top:12px;">
+        <p class="sub"><b style="color:var(--text)">What we collect:</b> your location during an active alert or journey, trusted contact details, and any reports you submit.</p>
+        <p class="sub" style="margin-top:12px;"><b style="color:var(--text)">Why:</b> to notify responders and your trusted contacts quickly during an emergency.</p>
+        <p class="sub" style="margin-top:12px;"><b style="color:var(--text)">Who can access it:</b> campus security only during an active alert, and admin for reports and safety planning.</p>
+        <p class="sub" style="margin-top:12px;"><b style="color:var(--text)">Retention:</b> alert and location data is kept only as long as needed for follow-up, per POPIA.</p>
+        <div class="info-banner" style="margin-top:16px;"><svg class="icon" data-i="info" viewBox="0 0 24 24"></svg><p>This is a hackathon prototype. All data shown is simulated. In an emergency, always contact official services directly.</p></div>
+      </div>
+    </div>
+
+
+    <div class="screen" id="rp-home">
+      <div class="status-bar"><span>9:41</span><div class="status-icons"><svg class="icon-sm" data-i="signal" viewBox="0 0 24 24"></svg><svg class="icon-sm" data-i="wifi" viewBox="0 0 24 24"></svg><svg class="icon-sm" data-i="battery" viewBox="0 0 24 24"></svg></div></div>
+      <div class="home-header">
+        <div><div style="font-size:15px;font-weight:700;">Active Alerts</div><div style="font-size:11px;color:var(--text-secondary);">Themba Mkhize · NMU Campus Security</div></div>
+        <div class="avatar-circ">TM</div>
+      </div>
+      <div class="scroll">
+        <div class="row-item" onclick="nav('w-student','rp-alert-detail')"><div class="ic-wrap" style="background:var(--danger-light);"><svg class="icon-sm" data-i="siren" viewBox="0 0 24 24" style="color:var(--danger)"></svg></div><div><div class="t">Panic alert — Aviwe N.</div><div class="d">Library Walkway (on campus) · 00:22 elapsed</div></div><span class="badge badge-new" style="margin-left:auto;">New</span></div>
+        <div class="row-item"><div class="ic-wrap" style="background:var(--warning-light);"><svg class="icon-sm" data-i="siren" viewBox="0 0 24 24" style="color:var(--warning)"></svg></div><div><div class="t">Panic alert — Zanele K.</div><div class="d">Bird St corner (Summerstrand) · Acknowledged by Security Company</div></div><span class="badge badge-ack" style="margin-left:auto;">Acknowledged</span></div>
+        <div class="row-item" style="border-bottom:none;"><div class="ic-wrap" style="background:#f5f3ff;"><svg class="icon-sm" data-i="siren" viewBox="0 0 24 24" style="color:#7c3aed"></svg></div><div><div class="t">Check-in missed — Thabo M.</div><div class="d">Walk With Me, off campus · dispatched (dual coverage zone)</div></div><span class="badge badge-dispatched" style="margin-left:auto;">Dispatched</span></div>
+        <div class="section-label">Today's resolved</div>
+        <div class="row-item" style="border-bottom:none;"><div class="ic-wrap" style="background:var(--success-light);"><svg class="icon-sm" data-i="check" viewBox="0 0 24 24" style="color:var(--success)"></svg></div><div><div class="t">Panic alert — Buhle S.</div><div class="d">Resolved · 08:15</div></div><span class="badge badge-resolved" style="margin-left:auto;">Resolved</span></div>
+      </div>
+      <div class="bottom-nav">
+        <button class="nav-item active"><svg class="icon" data-i="siren" viewBox="0 0 24 24"></svg>Alerts</button>
+        <button class="nav-item" onclick="nav('w-student','rp-history')"><svg class="icon" data-i="doc" viewBox="0 0 24 24"></svg>History</button>
+        <button class="nav-item" onclick="nav('w-student','rp-profile')"><svg class="icon" data-i="user" viewBox="0 0 24 24"></svg>Profile</button>
+      </div>
+    </div>
+
+    <div class="screen" id="rp-alert-detail">
+      <div class="flow-header"><button class="back-btn" onclick="nav('w-student','rp-home')"><svg class="icon" data-i="back" viewBox="0 0 24 24"></svg></button><h2 class="tt">Panic alert</h2></div>
+      <div class="map-area" style="flex:0 0 210px;">
+        <div class="pin high" style="top:70px;left:140px;"><div class="dot"></div></div>
+      </div>
+      <div class="scroll px" style="padding-top:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div><div class="t" style="font-size:14.5px;">Aviwe Ngcobo</div><div class="d">Library Walkway, South Campus</div></div>
+          <span class="badge badge-new">New</span>
+        </div>
+        <div class="med-banner"><svg class="icon" data-i="medical" viewBox="0 0 24 24"></svg><div><div class="t" style="font-size:12.5px;">Medical info available</div><div class="d" style="font-size:11px;">Allergic to penicillin · Asthma</div></div></div>
+        <div class="section-label" style="padding-left:0;padding-right:0;">Update status</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="abtn" onclick="showToast('w-student','Marked as Acknowledged')">Acknowledge</button>
+          <button class="abtn" onclick="showToast('w-student','Marked as Dispatched')">Dispatched</button>
+          <button class="abtn success" onclick="nav('w-student','rp-report')">Resolve</button>
+          <button class="abtn danger" onclick="showToast('w-student','Flagged: Possible False Alarm – Verify')">False Alarm – Verify</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen" id="rp-report">
+      <div class="flow-header"><button class="back-btn" onclick="nav('w-student','rp-alert-detail')"><svg class="icon" data-i="back" viewBox="0 0 24 24"></svg></button><h2 class="tt">Write report</h2></div>
+      <div class="scroll px" style="padding-top:14px;">
+        <p class="sub">Log a short note before closing this alert.</p>
+        <div class="field" style="margin-top:12px;"><label>What happened / outcome</label><textarea placeholder="e.g. Responded on scene, student confirmed safe…"></textarea></div>
+        <button class="btn btn-success" onclick="nav('w-student','rp-home')">Resolve & submit report</button>
+      </div>
+    </div>
+
+    <div class="screen" id="rp-history">
+      <div class="status-bar"><span>9:41</span><div class="status-icons"><svg class="icon-sm" data-i="signal" viewBox="0 0 24 24"></svg><svg class="icon-sm" data-i="wifi" viewBox="0 0 24 24"></svg><svg class="icon-sm" data-i="battery" viewBox="0 0 24 24"></svg></div></div>
+      <div class="flow-header" style="padding-top:2px;"><h2 class="tt">Report history</h2></div>
+      <div class="scroll px" style="padding-top:10px;">
+        <div class="row-item" style="padding-left:0;padding-right:0;"><div class="ic-wrap" style="background:var(--success-light);"><svg class="icon-sm" data-i="check" viewBox="0 0 24 24" style="color:var(--success)"></svg></div><div><div class="t">Buhle S. — Resolved</div><div class="d">Today, 08:15</div></div></div>
+        <div class="row-item" style="padding-left:0;padding-right:0;border-bottom:none;"><div class="ic-wrap" style="background:#f1f5f9;"><svg class="icon-sm" data-i="check" viewBox="0 0 24 24" style="color:var(--text-secondary)"></svg></div><div><div class="t">Kagiso P. — False alarm</div><div class="d">Yesterday, 21:40</div></div></div>
+      </div>
+      <div class="bottom-nav">
+        <button class="nav-item" onclick="nav('w-student','rp-home')"><svg class="icon" data-i="siren" viewBox="0 0 24 24"></svg>Alerts</button>
+        <button class="nav-item active"><svg class="icon" data-i="doc" viewBox="0 0 24 24"></svg>History</button>
+        <button class="nav-item" onclick="nav('w-student','rp-profile')"><svg class="icon" data-i="user" viewBox="0 0 24 24"></svg>Profile</button>
+      </div>
+    </div>
+
+    <div class="screen" id="rp-profile">
+      <div class="status-bar"><span>9:41</span><div class="status-icons"><svg class="icon-sm" data-i="signal" viewBox="0 0 24 24"></svg><svg class="icon-sm" data-i="wifi" viewBox="0 0 24 24"></svg><svg class="icon-sm" data-i="battery" viewBox="0 0 24 24"></svg></div></div>
+      <div class="scroll px" style="padding-top:18px;">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+          <div class="avatar-circ" style="width:54px;height:54px;font-size:17px;">TM</div>
+          <div><div style="font-size:16px;font-weight:700;">Themba Mkhize</div><div style="font-size:11.5px;color:var(--text-secondary);">South Campus responder</div></div>
+        </div>
+        <div class="drawer-item" style="padding-left:0;padding-right:0;" onclick="toggleDark(this)"><svg class="icon" data-i="settings" viewBox="0 0 24 24"></svg>Dark / light mode</div>
+        <div class="drawer-item" style="padding-left:0;padding-right:0;color:var(--danger);" onclick="nav('w-student','st-login')"><svg class="icon" data-i="logout" viewBox="0 0 24 24" style="color:var(--danger)"></svg>Log out</div>
+      </div>
+      <div class="bottom-nav">
+        <button class="nav-item" onclick="nav('w-student','rp-home')"><svg class="icon" data-i="siren" viewBox="0 0 24 24"></svg>Alerts</button>
+        <button class="nav-item" onclick="nav('w-student','rp-history')"><svg class="icon" data-i="doc" viewBox="0 0 24 24"></svg>History</button>
+        <button class="nav-item active"><svg class="icon" data-i="user" viewBox="0 0 24 24"></svg>Profile</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- ======================= ADMIN DASHBOARD ======================= -->
+<div class="app-shell" id="app-admin">
+<div class="app-label">Admin Web Dashboard — manage responders, alerts, zones, resources & approvals</div>
+<div class="browser-frame">
+  <div class="browser-top"><div class="dot3" style="background:#ff5f57;"></div><div class="dot3" style="background:#febc2e;"></div><div class="dot3" style="background:#28c840;"></div><div class="browser-url">vikela-admin.mandela.ac.za</div></div>
+
+  <div class="admin-body" id="ad-login-view">
+    <div style="flex:1;display:flex;align-items:center;justify-content:center;background:var(--surface);">
+      <div class="card" style="width:340px;">
+        <div class="auth-logo"><svg class="icon" data-i="shield" viewBox="0 0 24 24"></svg></div>
+        <h1 class="tt" style="font-size:20px;">Admin login</h1>
+        <p class="sub" style="margin:6px 0 18px;">Vikela system administration.</p>
+        <div class="desktop-field"><label>Email</label><input type="text" placeholder="admin@mandela.ac.za"></div>
+        <div class="desktop-field"><label>Password</label><input type="password" placeholder="••••••••"></div>
+        <button class="btn btn-primary" onclick="showAdminDashboard()">Log in</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="admin-body" id="ad-dash-view" style="display:none;">
+    <div class="admin-sidebar">
+      <div class="admin-brand"><svg class="icon" data-i="shield" viewBox="0 0 24 24"></svg>Vikela Admin</div>
+      <div class="admin-nav-item active" onclick="adNav(this,'ad-overview')"><svg class="icon" data-i="dashboard" viewBox="0 0 24 24"></svg>Overview</div>
+      <div class="admin-nav-item" onclick="adNav(this,'ad-responders')"><svg class="icon" data-i="shieldcheck" viewBox="0 0 24 24"></svg>Responders</div>
+      <div class="admin-nav-item" onclick="adNav(this,'ad-alerts')"><svg class="icon" data-i="bell" viewBox="0 0 24 24"></svg>Safety alerts</div>
+      <div class="admin-nav-item" onclick="adNav(this,'ad-zones')"><svg class="icon" data-i="mappin" viewBox="0 0 24 24"></svg>Campus zones</div>
+      <div class="admin-nav-item" onclick="adNav(this,'ad-resources')"><svg class="icon" data-i="book" viewBox="0 0 24 24"></svg>Resources & tips</div>
+      <div class="admin-nav-item" onclick="adNav(this,'ad-reports')"><svg class="icon" data-i="flag" viewBox="0 0 24 24"></svg>Incident reports</div>
+      <div class="admin-nav-item" onclick="adNav(this,'ad-groups')"><svg class="icon" data-i="group" viewBox="0 0 24 24"></svg>Walking groups</div>
+      <div class="admin-nav-item" onclick="adNav(this,'ad-contacts')"><svg class="icon" data-i="phone" viewBox="0 0 24 24"></svg>Emergency numbers</div>
+      <div style="flex:1;"></div>
+      <div class="admin-nav-item" onclick="document.getElementById('ad-dash-view').style.display='none';document.getElementById('ad-login-view').style.display='flex';"><svg class="icon" data-i="logout" viewBox="0 0 24 24"></svg>Log out</div>
+    </div>
+
+    <div class="admin-main">
+      <div class="admin-topbar">
+        <h2 class="tt" id="ad-page-title" style="font-size:18px;">Overview</h2>
+        <div style="display:flex;align-items:center;gap:12px;"><div class="avatar-circ">SA</div><div style="font-size:13px;font-weight:600;">System Admin</div></div>
+      </div>
+
+      <div class="admin-content">
+
+        <!-- OVERVIEW -->
+        <div class="ad-section" id="ad-overview">
+          <div class="stat-grid">
+            <div class="stat-card"><div class="lbl">Active alerts</div><div class="val">3</div><div class="delta">Across 2 campuses</div></div>
+            <div class="stat-card"><div class="lbl">Reports this week</div><div class="val">14</div><div class="delta">+4 vs last week</div></div>
+            <div class="stat-card"><div class="lbl">Pending group approvals</div><div class="val">2</div><div class="delta">Awaiting review</div></div>
+            <div class="stat-card"><div class="lbl">Registered responders</div><div class="val">18</div><div class="delta">Across 4 campuses</div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>Walking group activity (shuttle-demand insight)</h3></div>
+            <table class="dt">
+              <tr><th>Route</th><th>Time window</th><th>Weekly members</th></tr>
+              <tr><td>Library → North Res</td><td>16:00 – 17:00</td><td>40</td></tr>
+              <tr><td>2nd Ave → South Res</td><td>22:00 – 02:00</td><td>22</td></tr>
+              <tr><td>Ocean Sciences → South Campus</td><td>18:00 – 19:00</td><td>11</td></tr>
+            </table>
+          </div>
+        </div>
+
+        <!-- RESPONDERS -->
+        <div class="ad-section" id="ad-responders" style="display:none;">
+          <div class="panel">
+            <div class="panel-head"><h3>Responders</h3><button class="abtn primary" onclick="adNav(null,'ad-add-responder')">+ Add responder</button></div>
+            <table class="dt">
+              <tr><th>Name</th><th>Organization</th><th>Coverage zone</th><th>Email</th><th>Resolved</th><th>Status</th><th></th></tr>
+              <tr><td>Themba Mkhize</td><td><span class="badge badge-info">NMU Campus Security</span></td><td>South Campus</td><td>t.mkhize@mandela.ac.za</td><td>27</td><td><span class="badge badge-resolved">Active</span></td><td><button class="abtn danger">Deactivate</button></td></tr>
+              <tr><td>Nolwazi Zulu</td><td><span class="badge badge-info">NMU Campus Security</span></td><td>North Campus</td><td>n.zulu@mandela.ac.za</td><td>19</td><td><span class="badge badge-resolved">Active</span></td><td><button class="abtn danger">Deactivate</button></td></tr>
+              <tr><td>Karabo Sithole</td><td><span class="badge badge-dispatched">Security Company</span></td><td>Summerstrand (off campus)</td><td>k.sithole@securityco.co.za</td><td>34</td><td><span class="badge badge-resolved">Active</span></td><td><button class="abtn danger">Deactivate</button></td></tr>
+              <tr><td>Sibusiso Khan</td><td><span class="badge badge-info">NMU Campus Security</span></td><td>2nd Avenue Campus</td><td>s.khan@mandela.ac.za</td><td>8</td><td><span class="badge badge-verify">Inactive</span></td><td><button class="abtn success">Reactivate</button></td></tr>
+            </table>
+          </div>
+        </div>
+
+        <div class="ad-section" id="ad-add-responder" style="display:none;">
+          <div class="panel">
+            <div class="panel-head"><h3>Add responder</h3><button class="abtn" onclick="adNav(null,'ad-responders')">Back to list</button></div>
+            <div style="padding:20px;">
+              <div class="form-grid">
+                <div class="desktop-field"><label>Full name</label><input type="text" placeholder="e.g. Nolwazi Zulu"></div>
+                <div class="desktop-field"><label>Email</label><input type="text" placeholder="name@mandela.ac.za"></div>
+                <div class="desktop-field"><label>Organization</label>
+                  <select><option>NMU Campus Security</option><option>Security Company (off-campus, 24/7)</option></select>
+                </div>
+                <div class="desktop-field"><label>Coverage zone</label>
+                  <select><option>South Campus</option><option>North Campus</option><option>2nd Avenue Campus</option><option>Ocean Sciences Campus</option><option>Summerstrand (off campus)</option></select>
+                </div>
+                <div class="desktop-field"><label>Phone number</label><input type="text" placeholder="+27 82 000 0000"></div>
+              </div>
+              <button class="btn btn-primary" style="width:220px;margin-top:6px;" onclick="showToastAdmin('Responder added — they can now set a password on first login');adNav(null,'ad-responders')">Add responder</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ALERTS -->
+        <div class="ad-section" id="ad-alerts" style="display:none;">
+          <div class="panel">
+            <div class="panel-head"><h3>Safety alerts</h3><button class="abtn primary" onclick="adNav(null,'ad-create-alert')">+ Create alert</button></div>
+            <table class="dt">
+              <tr><th>Title</th><th>Campus</th><th>Level</th><th>Sent</th><th></th></tr>
+              <tr><td>Caution: Low lighting near parking</td><td>South Campus</td><td><span class="badge badge-caution">Caution</span></td><td>Today, 08:10</td><td><button class="abtn danger">Retract</button></td></tr>
+              <tr><td>Load shedding — Stage 2 tonight</td><td>All campuses</td><td><span class="badge badge-info">Info</span></td><td>Today, 06:00</td><td><button class="abtn danger">Retract</button></td></tr>
+              <tr><td>Access road closed</td><td>Ocean Sciences Campus</td><td><span class="badge badge-urgent">Urgent</span></td><td>Yesterday</td><td><button class="abtn danger">Retract</button></td></tr>
+            </table>
+          </div>
+        </div>
+
+        <div class="ad-section" id="ad-create-alert" style="display:none;">
+          <div class="panel">
+            <div class="panel-head"><h3>Create safety alert</h3><button class="abtn" onclick="adNav(null,'ad-alerts')">Back to list</button></div>
+            <div style="padding:20px;">
+              <div class="desktop-field"><label>Title</label><input type="text" placeholder="e.g. Caution: Low lighting near parking"></div>
+              <div class="desktop-field"><label>Message</label><textarea placeholder="Written calmly, without causing panic…" style="min-height:80px;"></textarea></div>
+              <div class="desktop-field"><label>Alert level</label>
+                <select><option>Information</option><option>Caution</option><option>Urgent</option></select>
+              </div>
+              <div class="desktop-field"><label>Target campuses</label>
+                <div class="campus-tags">
+                  <div class="ctag on">South Campus</div><div class="ctag">North Campus</div><div class="ctag">2nd Avenue Campus</div><div class="ctag">Ocean Sciences Campus</div><div class="ctag">All campuses</div>
+                </div>
+              </div>
+              <div class="toggle-row" style="max-width:320px;"><div><div class="t">Schedule for later</div><div class="d">Otherwise sends immediately</div></div><div class="switch" onclick="toggleSwitch(this)"></div></div>
+              <button class="btn btn-primary" style="width:180px;margin-top:16px;" onclick="showToastAdmin('Alert sent to South Campus');adNav(null,'ad-alerts')">Send alert</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ZONES -->
+        <div class="ad-section" id="ad-zones" style="display:none;">
+          <div class="panel">
+            <div class="panel-head"><h3>Campus & Summerstrand zones</h3><span class="sub">One continuous map, two coverage areas</span></div>
+            <div style="padding:16px;">
+              <div class="zone-map map-area">
+                <div class="pin high" style="top:70px;left:100px;"><div class="dot"></div></div>
+                <div class="pin high" style="top:150px;left:260px;"><div class="dot"></div></div>
+                <div class="pin med" style="top:200px;left:150px;"><div class="dot"></div></div>
+                <div class="pin low" style="top:100px;left:380px;"><div class="dot"></div></div>
+                <div class="pin high" style="top:150px;left:430px;"><div class="dot"></div></div>
+              </div>
+              <table class="dt">
+                <tr><th>Zone</th><th>Area</th><th>Status</th><th>Covered by</th><th>Reports</th><th></th></tr>
+                <tr><td>Parking Zone B</td><td>On campus</td><td><span class="badge badge-urgent">High risk</span></td><td>NMU Campus Security</td><td>6</td><td><button class="abtn">Edit</button></td></tr>
+                <tr><td>Rear pathway (Res block)</td><td>On campus, perimeter</td><td><span class="badge badge-urgent">High risk</span></td><td>NMU + Security Co.</td><td>4</td><td><button class="abtn">Edit</button></td></tr>
+                <tr><td>Sports field walkway</td><td>On campus</td><td><span class="badge badge-caution">Moderate</span></td><td>NMU Campus Security</td><td>2</td><td><button class="abtn">Edit</button></td></tr>
+                <tr><td>Library Walkway</td><td>On campus</td><td><span class="badge badge-resolved">Safe / patrolled</span></td><td>NMU Campus Security</td><td>0</td><td><button class="abtn">Edit</button></td></tr>
+                <tr><td>Bird St corner</td><td>Off campus — Summerstrand</td><td><span class="badge badge-urgent">High risk</span></td><td>Security Company</td><td>9</td><td><button class="abtn">Edit</button></td></tr>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- RESOURCES -->
+        <div class="ad-section" id="ad-resources" style="display:none;">
+          <div class="panel">
+            <div class="panel-head"><h3>Safety resources & tips</h3><button class="abtn primary">+ Add content</button></div>
+            <table class="dt">
+              <tr><th>Title</th><th>Category</th><th>Last edited</th></tr>
+              <tr><td>What to do in an emergency</td><td>Guidance</td><td>2 weeks ago</td></tr>
+              <tr><td>Safe walking tips</td><td>Guidance</td><td>1 month ago</td></tr>
+              <tr><td>Transport & lift safety</td><td>Guidance</td><td>1 month ago</td></tr>
+            </table>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>Community tips — pending verification</h3></div>
+            <table class="dt">
+              <tr><th>Submitted tip</th><th>Student</th><th></th></tr>
+              <tr><td>"Ocean Sciences shuttle stop gets very dark after 7pm"</td><td>Anonymous</td><td><button class="abtn success">Approve</button> <button class="abtn danger">Reject</button></td></tr>
+            </table>
+          </div>
+        </div>
+
+        <!-- REPORTS -->
+        <div class="ad-section" id="ad-reports" style="display:none;">
+          <div class="panel">
+            <div class="panel-head"><h3>Incident reports</h3></div>
+            <table class="dt">
+              <tr><th>Subject</th><th>Campus</th><th>Reporter</th><th>Submitted</th><th></th></tr>
+              <tr><td>Suspicious activity</td><td>South Campus</td><td>Anonymous</td><td>Today, 09:02</td><td><button class="abtn">View</button></td></tr>
+              <tr><td>Broken lighting</td><td>South Campus</td><td>Aviwe Ngcobo</td><td>Yesterday</td><td><button class="abtn">View</button></td></tr>
+              <tr><td>Harassment</td><td>North Campus</td><td>Anonymous</td><td>2 days ago</td><td><button class="abtn">View</button></td></tr>
+            </table>
+          </div>
+        </div>
+
+        <!-- GROUPS -->
+        <div class="ad-section" id="ad-groups" style="display:none;">
+          <div class="panel">
+            <div class="panel-head"><h3>Walking group approvals</h3></div>
+            <table class="dt">
+              <tr><th>Group</th><th>Route</th><th>Members</th><th></th></tr>
+              <tr><td>Late Study Group Walk</td><td>2nd Ave → South Res, 22:00</td><td>2</td><td><button class="abtn success" onclick="showToastAdmin('Group approved')">Approve</button> <button class="abtn danger" onclick="showToastAdmin('Group rejected')">Reject</button></td></tr>
+              <tr><td>Ocean Sci Late Shuttle Walk</td><td>Ocean Sciences → South Campus, 21:30</td><td>3</td><td><button class="abtn success" onclick="showToastAdmin('Group approved')">Approve</button> <button class="abtn danger" onclick="showToastAdmin('Group rejected')">Reject</button></td></tr>
+            </table>
+          </div>
+        </div>
+
+        <!-- CONTACTS -->
+        <div class="ad-section" id="ad-contacts" style="display:none;">
+          <div class="panel">
+            <div class="panel-head"><h3>Emergency contact numbers</h3><span class="sub">Shared across all 4 campuses</span></div>
+            <table class="dt">
+              <tr><th>Service</th><th>Number</th><th></th></tr>
+              <tr><td>Campus Security</td><td>041 504 0000</td><td><button class="abtn">Edit</button></td></tr>
+              <tr><td>Residence Support</td><td>041 504 0001</td><td><button class="abtn">Edit</button></td></tr>
+              <tr><td>Counselling & Wellness</td><td>041 504 0002</td><td><button class="abtn">Edit</button></td></tr>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast-admin" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);"><svg class="icon" data-i="check" viewBox="0 0 24 24"></svg><span id="toast-text-admin">Done</span></div>
+</div>
+
+<script>
+const icons = {
+  shield:'<path d="M12 2 4 5v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V5l-8-3z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>',
+  shieldcheck:'<path d="M12 2 4 5v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V5l-8-3z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
+  siren:'<path d="M12 3a5 5 0 0 0-5 5v4H3v2h18v-2h-4V8a5 5 0 0 0-5-5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 3V1M5 16v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+  mappin:'<path d="M12 22s7-6.3 7-12A7 7 0 0 0 5 10c0 5.7 7 12 7 12z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/>',
+  users:'<circle cx="9" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M16 8.2a3 3 0 1 1 3.4 4.7M17.5 14.7c2.6.6 4.5 2.6 4.5 5.3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+  group:'<circle cx="8" cy="9" r="2.6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="9" r="2.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3 20c0-3 2.2-5 5-5s5 2 5 5M11 20c0-3 2.2-5 5-5s5 2 5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+  home:'<path d="M4 11 12 4l8 7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10v9a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>',
+  bell:'<path d="M6 10a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 14 6 10z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 18.5a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+  flag:'<path d="M6 3v18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M6 4h11l-2.5 3.5L17 11H6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>',
+  user:'<circle cx="12" cy="8" r="3.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4.5 20c0-4 3.4-6.5 7.5-6.5s7.5 2.5 7.5 6.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+  menu:'<path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
+  back:'<path d="M15 5 8 12l7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+  close:'<path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  check:'<path d="M4 12.5 9.5 18 20 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  warning:'<path d="M12 4 21 20H3z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 10v4M12 17h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  info:'<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 11v5.5M12 7.5h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  walk:'<circle cx="13" cy="4.5" r="1.8" fill="currentColor"/><path d="M11 8l-2 4 3 2-1 6M11 8l3 1 2 4-3 2M14 9l3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
+  car:'<path d="M4 16V11l2-4h12l2 4v5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3 16h18M7 16v2M17 16v2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="7.5" cy="13.5" r="1" fill="currentColor"/><circle cx="16.5" cy="13.5" r="1" fill="currentColor"/>',
+  phone:'<path d="M6 3h3l2 5-2.5 1.5a12 12 0 0 0 5 5L15 12l5 2v3a2 2 0 0 1-2 2C10.5 19 4 12.5 4 5a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
+  doc:'<path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M14 3v4h4M9 12h6M9 15h6M9 9h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
+  chat:'<path d="M4 5h16v10H8l-4 4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
+  book:'<path d="M4 5.5c2-1 5-1 8 0v13c-3-1-6-1-8 0zM20 5.5c-2-1-5-1-8 0v13c3-1 6-1 8 0z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
+  settings:'<circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M19 12a7 7 0 0 0-.15-1.4l2-1.5-2-3.4-2.3.9a7 7 0 0 0-2.4-1.4L14 3h-4l-.15 2.2a7 7 0 0 0-2.4 1.4l-2.3-.9-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .5.05.9.15 1.4l-2 1.6 2 3.4 2.3-.9c.7.6 1.5 1.1 2.4 1.4L10 21h4l.15-2.1a7 7 0 0 0 2.4-1.4l2.3.9 2-3.4-2-1.6c.1-.5.15-.9.15-1.4z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>',
+  logout:'<path d="M9 4H5v16h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 8l4 4-4 4M8 12h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
+  camera:'<path d="M4 8h3l1.5-2h7L17 8h3v11H4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="13.5" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+  search:'<circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M20 20l-4.3-4.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+  signal:'<path d="M4 18v-2M9 18v-5M14 18V9M19 18V5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  wifi:'<path d="M3 8.5a13 13 0 0 1 18 0M6 12a8.5 8.5 0 0 1 12 0M9.5 15.3a4 4 0 0 1 5 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="18.3" r="1.1" fill="currentColor"/>',
+  battery:'<rect x="2.5" y="8" width="16.5" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="4.3" y="9.8" width="11" height="4.4" fill="currentColor"/><path d="M20.5 10.5v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+  lock:'<rect x="5" y="10" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+  medical:'<rect x="3" y="3" width="18" height="18" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 7v10M7 12h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  qr:'<rect x="3" y="3" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="3" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="14" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="14" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+  chevron:'<path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+  dashboard:'<rect x="3" y="3" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="10" width="8" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/>'
+};
+document.querySelectorAll('svg[data-i]').forEach(el=>{ el.innerHTML = icons[el.getAttribute('data-i')] || ''; el.setAttribute('fill','none'); });
+
+function switchRole(id, btn){
+  document.querySelectorAll('.app-shell').forEach(s=>s.classList.remove('show'));
+  document.getElementById(id).classList.add('show');
+  document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function nav(container, id){
+  const root = document.getElementById(container);
+  const cur = root.querySelector('.screen.active');
+  if(cur) cur.classList.remove('active');
+  document.getElementById(id).classList.add('active');
+}
+
+function chipSelect(el){
+  el.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+}
+function toggleSwitch(el){ el.classList.toggle('on'); }
+
+function openDrawer(){ document.getElementById('st-drawer-overlay').classList.add('show'); document.getElementById('st-drawer').classList.add('show'); }
+function closeDrawer(){ document.getElementById('st-drawer-overlay').classList.remove('show'); document.getElementById('st-drawer').classList.remove('show'); }
+
+let toastTimer;
+function showToast(container, msg){
+  const suffix = container === 'w-student' ? 'student' : container === 'w-responder' ? 'responder' : 'admin';
+  const t = document.getElementById('toast-'+suffix);
+  document.getElementById('toast-text-'+suffix).textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2400);
+}
+function showToastAdmin(msg){ showToast('w-admin', msg); }
+
+let sosTimer, sosCount;
+function startHold(){
+  sosCount = 3;
+  document.getElementById('count-num').textContent = sosCount;
+  document.getElementById('sos-modal').classList.add('show');
+  sosTimer = setInterval(()=>{
+    sosCount--;
+    if(sosCount <= 0){
+      clearInterval(sosTimer);
+      document.getElementById('sos-modal').classList.remove('show');
+      nav('w-student','st-sos-active');
+    } else {
+      document.getElementById('count-num').textContent = sosCount;
+    }
+  }, 1000);
+}
+function cancelHold(){
+  clearInterval(sosTimer);
+  document.getElementById('sos-modal').classList.remove('show');
+}
+function cancelSosConfirm(){ cancelHold(); }
+
+function showPopup(title,sub){
+  document.getElementById('popup-title').textContent = title;
+  document.getElementById('popup-sub').textContent = sub;
+  document.getElementById('map-popup').classList.add('show');
+}
+function hidePopup(){ document.getElementById('map-popup').classList.remove('show'); }
+
+function toggleDark(){ showToast('w-student','Appearance preference saved'); }
+
+function showAdminDashboard(){
+  document.getElementById('ad-login-view').style.display = 'none';
+  document.getElementById('ad-dash-view').style.display = 'flex';
+}
+function adNav(btn, sectionId){
+  document.querySelectorAll('.ad-section').forEach(s=>s.style.display='none');
+  document.getElementById(sectionId).style.display='block';
+  if(btn){
+    document.querySelectorAll('.admin-nav-item').forEach(n=>n.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('ad-page-title').textContent = btn.textContent.trim();
+  }
+}
+document.querySelectorAll('.ctag').forEach(t=>t.addEventListener('click',()=>t.classList.toggle('on')));
+
+setTimeout(()=>{ nav('w-student','st-login'); }, 1600);
+</script>
+</body>
+</html>
