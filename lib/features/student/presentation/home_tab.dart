@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/connectivity/connectivity_service.dart';
 import '../../../core/theme/app_theme.dart';
 import 'active_sos_screen.dart';
 import 'call_security_screen.dart';
@@ -25,7 +26,23 @@ class HomeTab extends StatelessWidget {
   final Future<int>? pendingInvitesFuture;
   final VoidCallback? onOpenPendingInvites;
 
-  void _handleSosActivated(BuildContext context) {
+  /// scope.md §5 "Offline fallback": with no data connection there's no
+  /// way to write a real `alerts` row, so SOS degrades to the same
+  /// always-works phone call rather than holding for 3 seconds only to
+  /// silently fail. Checked here (before creating the screen at all)
+  /// rather than inside ActiveSosScreen after a slow, doomed network
+  /// request times out.
+  Future<void> _handleSosActivated(BuildContext context) async {
+    final online = await ConnectivityService.hasConnection();
+    if (!context.mounted) return;
+    if (!online) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const CallSecurityScreen(offlineNotice: true),
+        ),
+      );
+      return;
+    }
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const ActiveSosScreen()),
     );

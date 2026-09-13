@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../core/location/location_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/supabase/supabase_service.dart';
 import 'qr_scan_screen.dart';
@@ -32,6 +33,8 @@ class _MapTabState extends State<MapTab> {
   late final Future<List<Map<String, dynamic>>> _zonesFuture;
   final _mapController = MapController();
   Map<String, dynamic>? _selectedZone;
+  LatLng? _myLocation;
+  bool _isLocating = false;
 
   @override
   void initState() {
@@ -41,6 +44,26 @@ class _MapTabState extends State<MapTab> {
         .select('name, area_type, risk_status, covered_by, lat, lng')
         .order('area_type')
         .order('name');
+  }
+
+  Future<void> _goToCurrentLocation() async {
+    setState(() => _isLocating = true);
+    final position = await LocationService.getCurrentLocation();
+    if (!mounted) return;
+    setState(() => _isLocating = false);
+    if (position == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Couldn't get your location — check location permission is allowed",
+          ),
+        ),
+      );
+      return;
+    }
+    final here = LatLng(position.latitude, position.longitude);
+    setState(() => _myLocation = here);
+    _mapController.move(here, 16);
   }
 
   String _coverageLabel(String? coveredBy) {
@@ -80,11 +103,37 @@ class _MapTabState extends State<MapTab> {
                 ),
                 children: [
                   TileLayer(
-                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.example.app',
+                    // Two dead ends before this one: raw
+                    // tile.openstreetmap.org blocks unregistered app
+                    // traffic outright, and CartoDB's basemaps.cartocdn.com
+                    // (looked free, worked in a one-off curl test) turned
+                    // out to require an account/API key for real in-app
+                    // use. Esri's World_Street_Map tile service has stayed
+                    // genuinely key-free for community/prototype use for
+                    // years — verified as a real image response, not an
+                    // error page, before wiring it in here.
+                    urlTemplate:
+                        'https://server.arcgisonline.com/ArcGIS/rest/services/'
+                        'World_Street_Map/MapServer/tile/{z}/{y}/{x}',
                   ),
                   MarkerLayer(
                     markers: [
+                      if (_myLocation != null)
+                        Marker(
+                          point: _myLocation!,
+                          width: 26,
+                          height: 26,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.seed,
+                              border: Border.all(color: Colors.white, width: 3),
+                              boxShadow: const [
+                                BoxShadow(color: Colors.black45, blurRadius: 4),
+                              ],
+                            ),
+                          ),
+                        ),
                       for (final zone in zones)
                         Marker(
                           point: LatLng(
@@ -200,12 +249,32 @@ class _MapTabState extends State<MapTab> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.alert,
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const QrScanScreen()),
-        ),
-        child: const Icon(Icons.qr_code_scanner, color: Colors.white),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton(
+            heroTag: 'my_location',
+            backgroundColor: colorScheme.surface,
+            foregroundColor: AppColors.seed,
+            onPressed: _isLocating ? null : _goToCurrentLocation,
+            child: _isLocating
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2.4),
+                  )
+                : const Icon(Icons.my_location),
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton(
+            heroTag: 'qr_scan',
+            backgroundColor: AppColors.alert,
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const QrScanScreen()),
+            ),
+            child: const Icon(Icons.qr_code_scanner, color: Colors.white),
+          ),
+        ],
       ),
     );
   }

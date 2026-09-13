@@ -2,11 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/supabase/supabase_service.dart';
+import '../data/emergency_contacts_cache.dart';
 
 /// scope.md §5 "Offline fallback": these are real phone numbers dialled
-/// via the OS phone app, so they still work with zero data connection.
+/// via the OS phone app, so they still work with zero data connection —
+/// but the numbers themselves come from Supabase, so this screen is also
+/// this app's designated *offline destination* for SOS (home_tab.dart
+/// routes here instead of the real alert flow when there's no
+/// connection). That only actually works with zero data if the list is
+/// cached locally ahead of time, which is what this does.
 class CallSecurityScreen extends StatefulWidget {
-  const CallSecurityScreen({super.key});
+  const CallSecurityScreen({super.key, this.offlineNotice = false});
+
+  /// True when this screen was opened as SOS's offline fallback rather
+  /// than from the normal Quick Actions tile — shows an explanatory
+  /// banner instead of pretending this was the button the student meant
+  /// to press.
+  final bool offlineNotice;
 
   @override
   State<CallSecurityScreen> createState() => _CallSecurityScreenState();
@@ -18,10 +30,26 @@ class _CallSecurityScreenState extends State<CallSecurityScreen> {
   @override
   void initState() {
     super.initState();
-    _contactsFuture = SupabaseService.client
-        .from('emergency_contacts')
-        .select()
-        .order('service_name');
+    _contactsFuture = _loadContacts();
+  }
+
+  Future<List<Map<String, dynamic>>> _loadContacts() async {
+    try {
+      final rows = await SupabaseService.client
+          .from('emergency_contacts')
+          .select()
+          .order('service_name');
+      final contacts = List<Map<String, dynamic>>.from(rows);
+      if (contacts.isNotEmpty) {
+        await EmergencyContactsCache.save(contacts);
+      }
+      return contacts;
+    } catch (_) {
+      // No connection (or the request failed for any other reason) —
+      // fall back to whatever was cached the last time this loaded
+      // successfully, rather than showing a blank/broken screen.
+      return EmergencyContactsCache.load();
+    }
   }
 
   Future<void> _call(String phoneNumber) async {
@@ -50,6 +78,31 @@ class _CallSecurityScreenState extends State<CallSecurityScreen> {
           return ListView(
             padding: const EdgeInsets.all(20),
             children: [
+              if (widget.offlineNotice) ...[
+                Container(
+                  padding: const EdgeInsets.all(13),
+                  decoration: BoxDecoration(
+                    color: colorScheme.errorContainer.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.wifi_off, size: 18, color: colorScheme.error),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text(
+                          "No connection right now, so SOS can't send a real "
+                          'alert — call security directly instead. This '
+                          'still reaches help immediately.',
+                          style: TextStyle(fontSize: 12.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               if (contacts.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 24),
