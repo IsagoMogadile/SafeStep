@@ -31,7 +31,7 @@ class _BrowseGroupsScreenState extends State<BrowseGroupsScreen> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _groupsFuture = _fetchGroups());
+    setState(() { _groupsFuture = _fetchGroups(); });
   }
 
   @override

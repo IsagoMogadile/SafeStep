@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/location/location_service.dart';
 import '../../../../core/supabase/supabase_service.dart';
 import '../../data/walk_session_repository.dart';
 import 'walk_active_screen.dart';
@@ -16,8 +17,12 @@ class _WalkInviteScreenState extends State<WalkInviteScreen> {
   final _destinationController = TextEditingController();
   final _repository = WalkSessionRepository();
 
+  final _startLocationController = TextEditingController();
   late final Future<List<Map<String, dynamic>>> _contactsFuture;
   String? _selectedContactId;
+  double? _startLat;
+  double? _startLng;
+  bool _isLocating = false;
   bool _isSubmitting = false;
   String? _errorMessage;
 
@@ -38,7 +43,33 @@ class _WalkInviteScreenState extends State<WalkInviteScreen> {
   @override
   void dispose() {
     _destinationController.dispose();
+    _startLocationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _useCurrentLocation() async {
+    setState(() => _isLocating = true);
+    final position = await LocationService.getCurrentLocation();
+    if (!mounted) return;
+    setState(() {
+      _isLocating = false;
+      if (position != null) {
+        _startLat = position.latitude;
+        _startLng = position.longitude;
+        _startLocationController.text =
+            '${position.latitude.toStringAsFixed(5)}, '
+            '${position.longitude.toStringAsFixed(5)}';
+      }
+    });
+    if (position == null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Couldn't get your location — check location permission is allowed",
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _sendInvite() async {
@@ -59,6 +90,11 @@ class _WalkInviteScreenState extends State<WalkInviteScreen> {
         studentId: userId,
         companionContactId: _selectedContactId!,
         destination: _destinationController.text.trim(),
+        startLocationText: _startLocationController.text.trim().isEmpty
+            ? null
+            : _startLocationController.text.trim(),
+        startLat: _startLat,
+        startLng: _startLng,
       );
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
@@ -123,6 +159,29 @@ class _WalkInviteScreenState extends State<WalkInviteScreen> {
                           setState(() => _selectedContactId = value),
                     );
                   },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _startLocationController,
+                  decoration: InputDecoration(
+                    labelText: 'Start Location (optional)',
+                    hintText: 'Where are you starting from?',
+                    prefixIcon: const Icon(Icons.trip_origin),
+                    suffixIcon: _isLocating
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : IconButton(
+                            icon: const Icon(Icons.my_location),
+                            tooltip: 'Use current location',
+                            onPressed: _useCurrentLocation,
+                          ),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 TextFormField(

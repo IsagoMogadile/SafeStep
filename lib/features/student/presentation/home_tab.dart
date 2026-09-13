@@ -14,9 +14,16 @@ import 'widgets/sos_hold_button.dart';
 /// scrolling required (scope.md §5 "Home screen"). Everything else lives
 /// in the drawer.
 class HomeTab extends StatelessWidget {
-  const HomeTab({super.key, required this.campusName});
+  const HomeTab({
+    super.key,
+    required this.campusName,
+    this.pendingInvitesFuture,
+    this.onOpenPendingInvites,
+  });
 
   final String? campusName;
+  final Future<int>? pendingInvitesFuture;
+  final VoidCallback? onOpenPendingInvites;
 
   void _handleSosActivated(BuildContext context) {
     Navigator.of(context).push(
@@ -87,6 +94,53 @@ class HomeTab extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (pendingInvitesFuture != null)
+                  FutureBuilder<int>(
+                    future: pendingInvitesFuture,
+                    builder: (context, snapshot) {
+                      final count = snapshot.data ?? 0;
+                      if (count == 0) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: InkWell(
+                          onTap: onOpenPendingInvites,
+                          borderRadius: BorderRadius.circular(14),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 15,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colorScheme.tertiaryContainer.withValues(alpha: 0.5),
+                              border: Border.all(
+                                color: colorScheme.tertiary.withValues(alpha: 0.4),
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.directions_walk, color: colorScheme.tertiary, size: 18),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    count == 1
+                                        ? 'You have a Walk With Me companion invite'
+                                        : 'You have $count Walk With Me companion invites',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                Icon(Icons.chevron_right, color: colorScheme.tertiary),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 const SizedBox(height: 16),
                 SosHoldButton(onActivated: () => _handleSosActivated(context)),
                 const SizedBox(height: 24),

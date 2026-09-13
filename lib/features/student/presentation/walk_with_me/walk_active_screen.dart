@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../../core/notifications/notification_service.dart';
 import '../../data/walk_session_repository.dart';
 import '../active_sos_screen.dart';
+import 'widgets/route_map_view.dart';
 
 /// Journey-in-progress screen for both Walk With Me modes (scope.md §5).
 /// For `self_monitored`, a missed check-in prompts the student and, if
@@ -23,21 +25,44 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
 
   Timer? _tickTimer;
   Timer? _graceTimer;
+  Timer? _acceptancePollTimer;
   Duration _remaining = Duration.zero;
   bool _showingCheckInPrompt = false;
   bool _isBusy = false;
+  late Map<String, dynamic> _session;
 
-  bool get _isTimerMode => widget.session['mode'] == 'self_monitored';
+  bool get _isTimerMode => _session['mode'] == 'self_monitored';
+  bool get _companionAccepted => _session['companion_accepted_at'] != null;
 
   @override
   void initState() {
     super.initState();
+    _session = widget.session;
     NotificationService.instance.onAction = _handleNotificationAction;
     if (_isTimerMode) {
       _recomputeRemaining();
       _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
     } else {
       _showNotification();
+      if (!_companionAccepted) {
+        // No realtime subscriptions exist anywhere in this app yet — a
+        // short poll is the simplest correct way to notice the companion
+        // accepting (scope.md §5: "they must accept before the journey
+        // starts").
+        _acceptancePollTimer = Timer.periodic(
+          const Duration(seconds: 8),
+          (_) => _pollForAcceptance(),
+        );
+      }
+    }
+  }
+
+  Future<void> _pollForAcceptance() async {
+    final fresh = await _repository.fetchSession(_session['session_id'] as String);
+    if (!mounted) return;
+    if (fresh['companion_accepted_at'] != null) {
+      _acceptancePollTimer?.cancel();
+      setState(() => _session = fresh);
     }
   }
 
@@ -45,6 +70,7 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
   void dispose() {
     _tickTimer?.cancel();
     _graceTimer?.cancel();
+    _acceptancePollTimer?.cancel();
     NotificationService.instance.onAction = null;
     NotificationService.instance.cancelJourneyNotification();
     super.dispose();
@@ -56,7 +82,7 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
   /// than requiring SafeStep to stay in the foreground.
   Future<void> _showNotification() async {
     await NotificationService.instance.showJourneyNotification(
-      title: 'Walk With Me — ${widget.session['destination'] ?? 'journey'}',
+      title: 'Walk With Me — ${_session['destination'] ?? 'journey'}',
       body: _isTimerMode
           ? 'Time remaining: $_remainingLabel'
           : 'Your companion can see your journey status',
@@ -74,9 +100,9 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
   }
 
   void _recomputeRemaining() {
-    final startedAt = DateTime.parse(widget.session['started_at'] as String);
-    final timerMinutes = (widget.session['timer_minutes'] as int?) ?? 0;
-    final extendedMinutes = (widget.session['extended_minutes'] as int?) ?? 0;
+    final startedAt = DateTime.parse(_session['started_at'] as String);
+    final timerMinutes = (_session['timer_minutes'] as int?) ?? 0;
+    final extendedMinutes = (_session['extended_minutes'] as int?) ?? 0;
     final deadline = startedAt.add(
       Duration(minutes: timerMinutes + extendedMinutes),
     );
@@ -128,7 +154,7 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
   Future<void> _escalate() async {
     if (!mounted) return;
     Navigator.of(context).pop(); // dismiss the check-in dialog
-    final sessionId = widget.session['session_id'] as String;
+    final sessionId = _session['session_id'] as String;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => ActiveSosScreen(
@@ -148,11 +174,11 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
     setState(() => _isBusy = true);
     try {
       await _repository.extendSession(
-        widget.session['session_id'] as String,
+        _session['session_id'] as String,
         10,
       );
-      widget.session['extended_minutes'] =
-          ((widget.session['extended_minutes'] as int?) ?? 0) + 10;
+      _session['extended_minutes'] =
+          ((_session['extended_minutes'] as int?) ?? 0) + 10;
       _recomputeRemaining();
       _showNotification();
       if (mounted) {
@@ -168,7 +194,7 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
   Future<void> _arrivedSafely() async {
     setState(() => _isBusy = true);
     try {
-      await _repository.markArrived(widget.session['session_id'] as String);
+      await _repository.markArrived(_session['session_id'] as String);
       if (!mounted) return;
       Navigator.of(context).popUntil((route) => route.isFirst);
     } finally {
@@ -192,7 +218,7 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
           automaticallyImplyLeading: false,
         ),
         body: SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
@@ -207,7 +233,7 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (widget.session['start_location_text'] != null) ...[
+                        if (_session['start_location_text'] != null) ...[
                           Row(
                             children: [
                               Icon(
@@ -218,7 +244,7 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  widget.session['start_location_text'] as String,
+                                  _session['start_location_text'] as String,
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
                               ),
@@ -235,7 +261,7 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                widget.session['destination'] as String? ?? '',
+                                _session['destination'] as String? ?? '',
                                 style: Theme.of(context).textTheme.titleSmall,
                               ),
                             ),
@@ -287,30 +313,49 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
                       ),
                     ),
                   )
-                else
+                else ...[
                   Card(
                     elevation: 0,
-                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                    color: _companionAccepted
+                        ? Theme.of(context).colorScheme.tertiaryContainer.withValues(alpha: 0.5)
+                        : Theme.of(context).colorScheme.surfaceContainerHigh,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: const Padding(
-                      padding: EdgeInsets.all(16),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
                       child: Row(
                         children: [
-                          Icon(Icons.visibility_outlined),
-                          SizedBox(width: 12),
+                          Icon(_companionAccepted ? Icons.check_circle : Icons.hourglass_top),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              "Your companion can see your journey status "
-                              'until you arrive.',
+                              _companionAccepted
+                                  ? 'Your companion accepted and can see your journey.'
+                                  : 'Waiting for your companion to accept the invite…',
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                const Spacer(),
+                  if (_companionAccepted &&
+                      _session['start_lat'] != null &&
+                      _session['start_lng'] != null &&
+                      (_session['destination'] as String?)?.isNotEmpty == true) ...[
+                    const SizedBox(height: 16),
+                    Text('Planned route', style: Theme.of(context).textTheme.titleSmall),
+                    const SizedBox(height: 8),
+                    RouteMapView(
+                      origin: LatLng(
+                        (_session['start_lat'] as num).toDouble(),
+                        (_session['start_lng'] as num).toDouble(),
+                      ),
+                      destinationQuery: _session['destination'] as String,
+                    ),
+                  ],
+                ],
+                const SizedBox(height: 24),
                 ElevatedButton.icon(
                   onPressed: _isBusy ? null : _arrivedSafely,
                   style: ElevatedButton.styleFrom(

@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show CountOption;
 
 import '../../../core/supabase/supabase_service.dart';
 import '../../auth/data/auth_repository.dart';
+import '../data/alerts_seen_prefs.dart';
+import '../data/walk_session_repository.dart';
 import 'alerts_screen.dart';
 import 'home_tab.dart';
 import 'map_tab.dart';
 import 'profile_tab.dart';
+import 'walk_with_me/companion_invites_screen.dart';
 import 'widgets/student_drawer.dart';
 
 /// Student post-login shell: exactly 3 bottom-nav tabs (Home/Map/Profile)
@@ -19,13 +23,34 @@ class StudentHomeShell extends StatefulWidget {
 }
 
 class _StudentHomeShellState extends State<StudentHomeShell> {
+  final _walkRepository = WalkSessionRepository();
   int _tabIndex = 0;
   late final Future<Map<String, dynamic>?> _profileFuture;
+  late Future<int> _unreadAlertsFuture;
+  late Future<int> _pendingInvitesFuture;
 
   @override
   void initState() {
     super.initState();
     _profileFuture = _fetchProfile();
+    _unreadAlertsFuture = _fetchUnreadAlertsCount();
+    _pendingInvitesFuture = _fetchPendingInviteCount();
+  }
+
+  Future<int> _fetchPendingInviteCount() async {
+    final userId = SupabaseService.client.auth.currentUser?.id;
+    if (userId == null) return 0;
+    final invites = await _walkRepository.fetchPendingCompanionInvites(userId);
+    return invites.length;
+  }
+
+  Future<void> _openCompanionInvites() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const CompanionInvitesScreen()),
+    );
+    if (mounted) {
+      setState(() { _pendingInvitesFuture = _fetchPendingInviteCount(); });
+    }
   }
 
   Future<Map<String, dynamic>?> _fetchProfile() async {
@@ -36,6 +61,28 @@ class _StudentHomeShellState extends State<StudentHomeShell> {
         .select('full_name, email, faculty_year, residence_type, campuses(name)')
         .eq('student_id', userId)
         .maybeSingle();
+  }
+
+  Future<int> _fetchUnreadAlertsCount() async {
+    final lastSeen = await AlertsSeenPrefs.lastSeen();
+    var query = SupabaseService.client
+        .from('safety_broadcasts')
+        .select('broadcast_id')
+        .not('sent_at', 'is', null)
+        .filter('retracted_at', 'is', null);
+    if (lastSeen != null) {
+      query = query.gt('sent_at', lastSeen.toIso8601String());
+    }
+    final rows = await query.count(CountOption.exact);
+    return rows.count;
+  }
+
+  Future<void> _openAlerts() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AlertsScreen()),
+    );
+    await AlertsSeenPrefs.markSeenNow();
+    if (mounted) setState(() { _unreadAlertsFuture = _fetchUnreadAlertsCount(); });
   }
 
   @override
@@ -55,12 +102,20 @@ class _StudentHomeShellState extends State<StudentHomeShell> {
                 ? _HomeHeaderTitle(firstName: firstName, campusName: campusName)
                 : Text(_tabIndex == 1 ? 'Map' : 'Profile'),
             actions: [
-              IconButton(
-                icon: const Icon(Icons.notifications_outlined),
-                tooltip: 'Alerts',
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const AlertsScreen()),
-                ),
+              FutureBuilder<int>(
+                future: _unreadAlertsFuture,
+                builder: (context, unreadSnapshot) {
+                  final unread = unreadSnapshot.data ?? 0;
+                  return IconButton(
+                    icon: Badge(
+                      isLabelVisible: unread > 0,
+                      label: Text('$unread'),
+                      child: const Icon(Icons.notifications_outlined),
+                    ),
+                    tooltip: 'Alerts',
+                    onPressed: _openAlerts,
+                  );
+                },
               ),
               const SizedBox(width: 4),
             ],
@@ -69,7 +124,11 @@ class _StudentHomeShellState extends State<StudentHomeShell> {
           body: IndexedStack(
             index: _tabIndex,
             children: [
-              HomeTab(campusName: campusName),
+              HomeTab(
+                campusName: campusName,
+                pendingInvitesFuture: _pendingInvitesFuture,
+                onOpenPendingInvites: _openCompanionInvites,
+              ),
               const MapTab(),
               const ProfileTab(),
             ],

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../data/sos_rate_limit_prefs.dart';
 
 /// The panic button, matching docs/prototype.html's `.sos-launch` design:
 /// a horizontal red card that must be held for 3 seconds (scope.md §5 —
@@ -44,15 +45,55 @@ class _SosHoldButtonState extends State<SosHoldButton>
     super.dispose();
   }
 
-  void _startHold() {
+  Future<void> _startHold() async {
+    // Misuse-prevention (hackathon brief §7): no more than 3 SOS triggers
+    // in any rolling 10 minutes — a 4th attempt starts a 1-hour on-device
+    // ban. Checked here, before the hold even starts, so a banned student
+    // gets immediate feedback instead of holding for 3 seconds for
+    // nothing.
+    final bannedUntil = await SosRateLimitPrefs.bannedUntil();
+    if (bannedUntil != null) {
+      if (mounted) _showBannedMessage(bannedUntil);
+      return;
+    }
+
     _controller.forward(from: 0);
     _showOverlay();
-    _completionGuard = Timer(_holdDuration, () {
-      if (_controller.value >= 1.0) {
-        _removeOverlay();
-        widget.onActivated();
+    // Gating this on `_controller.value >= 1.0` used to cause a real race:
+    // this Timer runs on the real-time event loop, while the
+    // AnimationController only advances on frame callbacks (~16ms apart),
+    // so at the exact instant this fires the animation's value could still
+    // read fractionally under 1.0 — silently dropping the activation with
+    // no error, no alert, and an overlay that only ever closed on finger-up.
+    // This Timer only ever fires at all if `_cancelHold` didn't already
+    // cancel it, which is itself sufficient proof the hold was long enough.
+    _completionGuard = Timer(_holdDuration, () async {
+      _removeOverlay();
+      final freshBan = await SosRateLimitPrefs.checkAndRecord();
+      if (freshBan != null) {
+        if (mounted) _showBannedMessage(freshBan, justTriggered: true);
+        return;
       }
+      widget.onActivated();
     });
+  }
+
+  void _showBannedMessage(DateTime until, {bool justTriggered = false}) {
+    final minutesLeft = until.difference(DateTime.now()).inMinutes + 1;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 5),
+        content: Text(
+          justTriggered
+              ? "Too many SOS alerts sent — SOS is disabled for 1 hour to "
+                    'prevent misuse. If this is a real emergency, call '
+                    'security directly.'
+              : 'SOS is temporarily disabled ($minutesLeft min left) after '
+                    'repeated triggers. Call security directly for a real '
+                    'emergency.',
+        ),
+      ),
+    );
   }
 
   void _cancelHold() {

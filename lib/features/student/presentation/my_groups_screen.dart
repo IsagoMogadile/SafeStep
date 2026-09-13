@@ -56,7 +56,7 @@ class _MyGroupsScreenState extends State<MyGroupsScreen> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _groupsFuture = _fetchGroups());
+    setState(() { _groupsFuture = _fetchGroups(); });
   }
 
   @override

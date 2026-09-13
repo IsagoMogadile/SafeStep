@@ -12,6 +12,9 @@ class WalkSessionRepository {
     required String studentId,
     required String companionContactId,
     required String destination,
+    String? startLocationText,
+    double? startLat,
+    double? startLng,
   }) async {
     return await _client
         .from('walk_sessions')
@@ -20,11 +23,56 @@ class WalkSessionRepository {
           'mode': 'invite_companion',
           'companion_contact_id': companionContactId,
           'destination': destination,
+          'start_location_text': startLocationText,
+          'start_lat': startLat,
+          'start_lng': startLng,
           'status': 'active',
           'started_at': DateTime.now().toIso8601String(),
         })
         .select()
         .single();
+  }
+
+  /// Re-fetches a single session — used to poll for the companion's
+  /// acceptance (scope.md §5: "they must accept before the journey
+  /// starts") since this app doesn't have a realtime subscription set up
+  /// anywhere yet; a short poll is the simplest correct thing here.
+  Future<Map<String, dynamic>> fetchSession(String sessionId) {
+    return _client
+        .from('walk_sessions')
+        .select('*, students(full_name)')
+        .eq('session_id', sessionId)
+        .single();
+  }
+
+  /// Every `invite_companion` session where the signed-in student is the
+  /// companion (their own `trusted_contacts` row, linked back to them,
+  /// is the target) and hasn't accepted yet.
+  Future<List<Map<String, dynamic>>> fetchPendingCompanionInvites(
+    String companionStudentId,
+  ) async {
+    final myContactRows = await _client
+        .from('trusted_contacts')
+        .select('contact_id')
+        .eq('linked_student_id', companionStudentId);
+    final contactIds = myContactRows.map((r) => r['contact_id'] as String).toList();
+    if (contactIds.isEmpty) return [];
+
+    final rows = await _client
+        .from('walk_sessions')
+        .select('*, students(full_name)')
+        .inFilter('companion_contact_id', contactIds)
+        .eq('mode', 'invite_companion')
+        .eq('status', 'active')
+        .filter('companion_accepted_at', 'is', null);
+    return List<Map<String, dynamic>>.from(rows);
+  }
+
+  Future<void> acceptCompanionInvite(String sessionId) async {
+    await _client
+        .from('walk_sessions')
+        .update({'companion_accepted_at': DateTime.now().toIso8601String()})
+        .eq('session_id', sessionId);
   }
 
   Future<Map<String, dynamic>> createTimerSession({

@@ -47,7 +47,7 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _alertFuture = _fetchAlert());
+    setState(() { _alertFuture = _fetchAlert(); });
   }
 
   Future<void> _run(Future<void> Function() action) async {

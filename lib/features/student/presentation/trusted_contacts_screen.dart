@@ -27,7 +27,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
   }
 
   void _refresh() {
-    setState(() => _contactsFuture = _repository.fetchForStudent(_userId));
+    setState(() { _contactsFuture = _repository.fetchForStudent(_userId); });
   }
 
   Future<void> _addContact() async {

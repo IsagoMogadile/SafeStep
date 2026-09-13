@@ -9,6 +9,7 @@ import '../privacy_notice_screen.dart';
 import '../shuttle_library_screen.dart';
 import '../trusted_contacts_screen.dart';
 import '../safety_resources_screen.dart';
+import '../walk_with_me/companion_invites_screen.dart';
 
 /// Everything not on the Home screen's SOS + 4 tiles lives here
 /// (scope.md §5 "Home screen"), matching docs/prototype.html's drawer.
@@ -64,9 +65,13 @@ class StudentDrawer extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Text(
-                    fullName ?? 'Student',
-                    style: Theme.of(context).textTheme.titleSmall,
+                  Expanded(
+                    child: Text(
+                      fullName ?? 'Student',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
                   ),
                 ],
               ),
@@ -85,6 +90,12 @@ class StudentDrawer extends StatelessWidget {
                     leading: const Icon(Icons.groups_outlined),
                     title: const Text('Groups'),
                     onTap: () => _navigate(context, const GroupsHomeScreen()),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.directions_walk_outlined),
+                    title: const Text('Companion invites'),
+                    onTap: () =>
+                        _navigate(context, const CompanionInvitesScreen()),
                   ),
                   ListTile(
                     leading: const Icon(Icons.menu_book_outlined),

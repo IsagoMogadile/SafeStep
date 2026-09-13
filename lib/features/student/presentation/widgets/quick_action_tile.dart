@@ -32,6 +32,8 @@ class QuickActionTile extends StatelessWidget {
               Text(
                 label,
                 textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.labelLarge,
               ),
             ],

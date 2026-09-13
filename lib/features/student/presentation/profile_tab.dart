@@ -39,7 +39,7 @@ class _ProfileTabState extends State<ProfileTab> {
         .maybeSingle();
   }
 
-  void _refresh() => setState(() => _profileFuture = _fetchProfile());
+  void _refresh() => setState(() { _profileFuture = _fetchProfile(); });
 
   Future<void> _signOut(BuildContext context) async {
     if (!await confirmLogout(context)) return;
