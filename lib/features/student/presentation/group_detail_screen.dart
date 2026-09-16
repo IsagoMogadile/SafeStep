@@ -21,6 +21,7 @@ class GroupDetailScreen extends StatefulWidget {
 class _GroupDetailScreenState extends State<GroupDetailScreen>
     with SingleTickerProviderStateMixin {
   final _repository = GroupRepository();
+  final _messagesScrollController = ScrollController();
   late final TabController _tabController;
   late Future<Map<String, dynamic>> _groupFuture;
   late Future<List<Map<String, dynamic>>> _membersFuture;
@@ -36,14 +37,32 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     _tabController = TabController(length: 2, vsync: this);
     _groupFuture = _repository.fetchGroup(widget.groupId);
     _membersFuture = _repository.fetchMembers(widget.groupId);
-    _messagesFuture = _repository.fetchMessages(widget.groupId);
+    _messagesFuture = _repository.fetchMessages(widget.groupId)
+      ..then((_) => _scrollToBottom());
     _checkMembership();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _messagesScrollController.dispose();
     super.dispose();
+  }
+
+  /// Messages are already fetched oldest-first (`created_at` ascending),
+  /// so the newest message is the *last* item in a normal top-to-bottom
+  /// ListView — the sort order was never the problem. What was missing
+  /// is scrolling there automatically: without this, opening the screen
+  /// (or sending a new message) left you looking at the oldest messages
+  /// with the newest one off-screen below, which reads as "wrong order"
+  /// even though the underlying data isn't.
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_messagesScrollController.hasClients) return;
+      _messagesScrollController.jumpTo(
+        _messagesScrollController.position.maxScrollExtent,
+      );
+    });
   }
 
   Future<void> _checkMembership() async {
@@ -86,7 +105,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
         studentId: _userId,
         presetKey: key,
       );
-      _refresh();
+      setState(() {
+        _messagesFuture = _repository.fetchMessages(widget.groupId)
+          ..then((_) => _scrollToBottom());
+      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -201,6 +223,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                 );
               }
               return ListView.builder(
+                controller: _messagesScrollController,
                 padding: const EdgeInsets.all(16),
                 itemCount: messages.length,
                 itemBuilder: (context, index) {
