@@ -33,6 +33,7 @@ class _SosHoldButtonState extends State<SosHoldButton>
   late final AnimationController _controller;
   OverlayEntry? _overlayEntry;
   Timer? _completionGuard;
+  bool _pointerDown = false;
 
   @override
   void initState() {
@@ -57,6 +58,7 @@ class _SosHoldButtonState extends State<SosHoldButton>
     // doesn't cross-contaminate bans between them. Checked here, before
     // the hold even starts, so a banned student gets immediate feedback
     // instead of holding for 3 seconds for nothing.
+    _pointerDown = true;
     final userId = SupabaseService.client.auth.currentUser?.id;
     if (userId != null) {
       final bannedUntil = await _repository.checkSosGate(userId);
@@ -65,6 +67,12 @@ class _SosHoldButtonState extends State<SosHoldButton>
         return;
       }
     }
+    // The gate check above is a real network round-trip. If the finger
+    // already lifted while it was in flight, `_cancelHold` ran and found
+    // nothing to cancel yet (no timer, no animation started) — without
+    // this check the hold would start anyway right after, turning a
+    // quick tap into an unattended countdown that fires on its own.
+    if (!_pointerDown) return;
 
     HapticFeedback.heavyImpact(); // confirms the hold registered, for anyone not looking at the screen
     _controller.forward(from: 0);
@@ -103,6 +111,7 @@ class _SosHoldButtonState extends State<SosHoldButton>
   }
 
   void _cancelHold() {
+    _pointerDown = false;
     _completionGuard?.cancel();
     if (_controller.status != AnimationStatus.completed) {
       _controller.reverse();

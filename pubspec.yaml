@@ -1,5 +1,5 @@
 name: app
-description: "A new Flutter project."
+description: "SafeStep — campus safety companion app for NMU Summerstrand."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -49,6 +49,7 @@ dependencies:
   http: ^1.2.2
   connectivity_plus: ^6.1.0
   local_auth: ^2.3.0
+  home_widget: ^0.9.4
 
 dev_dependencies:
   flutter_test:
@@ -60,6 +61,18 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/safestep.jpg"
+  macos:
+    generate: true
+    image_path: "assets/icon/safestep.jpg"
+  windows:
+    generate: true
+    image_path: "assets/icon/safestep.jpg"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -75,6 +88,7 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - .env
+    - assets/icon/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:home_widget/home_widget.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show CountOption;
 
 import '../../../core/supabase/supabase_service.dart';
@@ -9,6 +12,7 @@ import 'alerts_screen.dart';
 import 'home_tab.dart';
 import 'map_tab.dart';
 import 'profile_tab.dart';
+import 'quick_sos_screen.dart';
 import 'support_screen.dart';
 import 'walk_with_me/companion_invites_screen.dart';
 import 'widgets/student_drawer.dart';
@@ -29,6 +33,8 @@ class _StudentHomeShellState extends State<StudentHomeShell> {
   late final Future<Map<String, dynamic>?> _profileFuture;
   late Future<int> _unreadAlertsFuture;
   late Future<int> _pendingInvitesFuture;
+  StreamSubscription<Uri?>? _widgetClickSub;
+  bool _openedQuickSos = false;
 
   @override
   void initState() {
@@ -36,6 +42,30 @@ class _StudentHomeShellState extends State<StudentHomeShell> {
     _profileFuture = _fetchProfile();
     _unreadAlertsFuture = _fetchUnreadAlertsCount();
     _pendingInvitesFuture = _fetchPendingInviteCount();
+    HomeWidget.initiallyLaunchedFromHomeWidget().then(_handleWidgetUri);
+    _widgetClickSub = HomeWidget.widgetClicked.listen(_handleWidgetUri);
+  }
+
+  @override
+  void dispose() {
+    _widgetClickSub?.cancel();
+    super.dispose();
+  }
+
+  // Fires when the app was opened (cold start) or brought to the
+  // foreground (warm) by tapping the SOS home-screen widget — jumps
+  // straight to the same hold-to-confirm flow as the in-app SOS button,
+  // skipping Home entirely.
+  void _handleWidgetUri(Uri? uri) {
+    if (uri?.host != 'sos' || _openedQuickSos) return;
+    _openedQuickSos = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const QuickSosScreen()));
+      _openedQuickSos = false;
+    });
   }
 
   Future<int> _fetchPendingInviteCount() async {

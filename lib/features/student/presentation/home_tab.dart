@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/connectivity/connectivity_service.dart';
 import '../../../core/theme/app_theme.dart';
-import 'active_sos_screen.dart';
 import 'call_security_screen.dart';
 import 'report_concern/report_step1_screen.dart';
 import 'safe_ride_screen.dart';
 import 'walk_with_me/walk_hub_screen.dart';
 import 'widgets/quick_action_tile.dart';
 import 'widgets/silent_alert_trigger.dart';
+import 'widgets/sos_activation.dart';
 import 'widgets/sos_hold_button.dart';
 
 /// Student home tab: status pill + SOS + exactly 4 quick-action tiles, no
@@ -25,28 +24,6 @@ class HomeTab extends StatelessWidget {
   final String? campusName;
   final Future<int>? pendingInvitesFuture;
   final VoidCallback? onOpenPendingInvites;
-
-  /// scope.md §5 "Offline fallback": with no data connection there's no
-  /// way to write a real `alerts` row, so SOS degrades to the same
-  /// always-works phone call rather than holding for 3 seconds only to
-  /// silently fail. Checked here (before creating the screen at all)
-  /// rather than inside ActiveSosScreen after a slow, doomed network
-  /// request times out.
-  Future<void> _handleSosActivated(BuildContext context) async {
-    final online = await ConnectivityService.hasConnection();
-    if (!context.mounted) return;
-    if (!online) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => const CallSecurityScreen(offlineNotice: true),
-        ),
-      );
-      return;
-    }
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ActiveSosScreen()),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -159,7 +136,7 @@ class HomeTab extends StatelessWidget {
                     },
                   ),
                 const SizedBox(height: 16),
-                SosHoldButton(onActivated: () => _handleSosActivated(context)),
+                SosHoldButton(onActivated: () => handleSosActivated(context)),
                 const SizedBox(height: 24),
                 Align(
                   alignment: Alignment.centerLeft,
