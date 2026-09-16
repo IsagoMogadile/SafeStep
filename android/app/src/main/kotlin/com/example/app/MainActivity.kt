@@ -1,5 +1,7 @@
 package com.example.app
 
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 
-class MainActivity : FlutterActivity()
+// FlutterFragmentActivity rather than FlutterActivity: the local_auth
+// plugin's biometric prompt requires a FragmentActivity host on Android.
+class MainActivity : FlutterFragmentActivity()

@@ -2,12 +2,14 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/auth/biometric_lock_prefs.dart';
 import '../../admin/presentation/admin_home_shell.dart';
 import '../../admin/presentation/admin_mobile_notice_screen.dart';
 import '../../responder/presentation/responder_home_shell.dart';
 import '../../student/presentation/student_home_shell.dart';
 import '../data/auth_repository.dart';
 import '../domain/app_role.dart';
+import 'biometric_lock_screen.dart';
 import 'student_wizard_screen.dart';
 import 'welcome_screen.dart';
 
@@ -22,8 +24,35 @@ class AuthGate extends StatefulWidget {
   State<AuthGate> createState() => _AuthGateState();
 }
 
-class _AuthGateState extends State<AuthGate> {
+class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   final _authRepository = AuthRepository();
+  bool _locked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _checkLock();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Re-lock every time the app returns from the background, not just
+    // on cold start — that's the whole point of an app-lock feature.
+    if (state == AppLifecycleState.resumed) _checkLock();
+  }
+
+  Future<void> _checkLock() async {
+    if (kIsWeb) return; // admin-only surface, no biometric hardware to gate behind
+    final enabled = await BiometricLockPrefs.isEnabled();
+    if (enabled && mounted) setState(() => _locked = true);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +62,11 @@ class _AuthGateState extends State<AuthGate> {
         final session = _authRepository.currentUser;
         if (session == null) {
           return const WelcomeScreen();
+        }
+        if (_locked) {
+          return BiometricLockScreen(
+            onUnlocked: () => setState(() => _locked = false),
+          );
         }
         return _RoleResolver(
           key: ValueKey(session.id),

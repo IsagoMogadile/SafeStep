@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/auth/biometric_lock_prefs.dart';
+import '../../../core/auth/biometric_service.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../../../core/theme/theme_controller.dart';
 import '../../auth/presentation/welcome_screen.dart';
@@ -14,6 +16,38 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _isDeleting = false;
+  bool _biometricSupported = false;
+  bool _biometricEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBiometricState();
+  }
+
+  Future<void> _loadBiometricState() async {
+    final supported = await BiometricService.isDeviceSupported();
+    final enabled = await BiometricLockPrefs.isEnabled();
+    if (!mounted) return;
+    setState(() {
+      _biometricSupported = supported;
+      _biometricEnabled = enabled;
+    });
+  }
+
+  Future<void> _setBiometricEnabled(bool value) async {
+    // Require a successful auth before turning the lock on, so the
+    // student can't lock themselves out with an unenrolled sensor.
+    if (value) {
+      final ok = await BiometricService.authenticate(
+        reason: 'Verify it\'s you to enable app lock',
+      );
+      if (!ok) return;
+    }
+    await BiometricLockPrefs.setEnabled(value);
+    if (!mounted) return;
+    setState(() => _biometricEnabled = value);
+  }
 
   Future<void> _confirmDelete() async {
     final confirmed = await showDialog<bool>(
@@ -121,6 +155,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
+          if (_biometricSupported) ...[
+            const SizedBox(height: 24),
+            Text('Security', style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              secondary: const Icon(Icons.fingerprint),
+              title: const Text('Require Face/Touch ID to open app'),
+              subtitle: const Text('Adds a lock screen on launch and after backgrounding'),
+              value: _biometricEnabled,
+              onChanged: _setBiometricEnabled,
+            ),
+          ],
           const SizedBox(height: 32),
           Text(
             'Danger Zone',
