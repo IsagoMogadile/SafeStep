@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_theme.dart';
 import 'create_account_screen.dart';
 import 'login_screen.dart';
 
@@ -37,6 +38,11 @@ class WelcomeScreen extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              const SizedBox(height: 8),
+              // A small, deliberate nod to NMU's navy-and-gold palette —
+              // kept to this one accent line rather than used throughout,
+              // so it reads as a light touch rather than a rebrand.
+              Container(width: 40, height: 3, color: AppColors.nmuGold),
               const SizedBox(height: 8),
               Text(
                 'Your campus & Summerstrand safety companion',

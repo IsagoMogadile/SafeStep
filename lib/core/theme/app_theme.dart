@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
 
-/// SafeStep visual identity: a calm, trustworthy indigo as the primary
-/// brand color, with a distinct alert red reserved for panic/emergency
-/// affordances so they never get confused with ordinary UI.
+/// SafeStep visual identity: a calm, trustworthy navy as the primary
+/// brand color — a light, deliberate nod to Nelson Mandela University's
+/// own navy-and-gold palette, since this is an NMU campus safety app —
+/// with a distinct alert red reserved for panic/emergency affordances so
+/// they never get confused with ordinary UI. NMU's public brand
+/// materials describe navy + gold but publish them as Pantone codes, not
+/// hex, so these are close approximations rather than an exact match.
+/// [nmuGold] is used sparingly (the welcome screen only) rather than
+/// throughout the app, to keep the safety-critical alert/caution/safe
+/// colors — which are used nowhere near branding — unambiguous.
 class AppColors {
   AppColors._();
 
-  static const seed = Color(0xFF1A56DB);
+  static const seed = Color(0xFF0F2C59);
+  static const nmuGold = Color(0xFFC9A227);
   static const alert = Color(0xFFDC2626);
   static const caution = Color(0xFFF59E0B);
   static const safe = Color(0xFF16A34A);
