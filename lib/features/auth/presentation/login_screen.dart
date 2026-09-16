@@ -8,6 +8,7 @@ import '../data/auth_repository.dart';
 import '../domain/app_role.dart';
 import 'forgot_password_screen.dart';
 import 'student_wizard_screen.dart';
+import 'widgets/auth_branding_header.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -101,6 +102,8 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const AuthBrandingHeader(),
+                const SizedBox(height: 24),
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,

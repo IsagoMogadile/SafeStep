@@ -18,17 +18,13 @@ class WelcomeScreen extends StatelessWidget {
           child: Column(
             children: [
               const Spacer(flex: 3),
-              Container(
-                width: 96,
-                height: 96,
-                decoration: BoxDecoration(
-                  color: colorScheme.primary,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Icon(
-                  Icons.shield_moon_outlined,
-                  size: 52,
-                  color: colorScheme.onPrimary,
+              ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: Image.asset(
+                  'assets/icon/safestep.jpg',
+                  width: 96,
+                  height: 96,
+                  fit: BoxFit.cover,
                 ),
               ),
               const SizedBox(height: 24),

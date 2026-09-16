@@ -6,6 +6,7 @@ import '../../responder/presentation/responder_home_shell.dart';
 import '../data/auth_repository.dart';
 import '../domain/app_role.dart';
 import 'student_wizard_screen.dart';
+import 'widgets/auth_branding_header.dart';
 
 /// Shared "Create Account" screen for students AND for responder/admin
 /// self-activation (scope.md §4). Everyone enters email + password here;
@@ -122,6 +123,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const AuthBrandingHeader(),
+                const SizedBox(height: 24),
                 Container(
                   padding: const EdgeInsets.all(13),
                   decoration: BoxDecoration(

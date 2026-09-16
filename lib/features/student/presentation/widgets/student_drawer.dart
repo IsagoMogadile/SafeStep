@@ -9,7 +9,6 @@ import '../privacy_notice_screen.dart';
 import '../shuttle_library_screen.dart';
 import '../trusted_contacts_screen.dart';
 import '../safety_resources_screen.dart';
-import '../safe_ride_screen.dart';
 import '../walk_with_me/companion_invites_screen.dart';
 
 /// Everything not on the Home screen's SOS + 4 tiles lives here
@@ -97,11 +96,6 @@ class StudentDrawer extends StatelessWidget {
                     title: const Text('Companion invites'),
                     onTap: () =>
                         _navigate(context, const CompanionInvitesScreen()),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.local_taxi_outlined),
-                    title: const Text('Safe Ride'),
-                    onTap: () => _navigate(context, const SafeRideScreen()),
                   ),
                   ListTile(
                     leading: const Icon(Icons.menu_book_outlined),

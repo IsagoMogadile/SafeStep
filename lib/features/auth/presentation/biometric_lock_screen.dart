@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/auth/biometric_lock_prefs.dart';
 import '../../../core/auth/biometric_service.dart';
+import '../../../core/supabase/supabase_service.dart';
 import '../../../core/theme/app_theme.dart';
 
 /// Shown in front of the student/responder/admin home whenever biometric
@@ -48,6 +50,18 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
     }
   }
 
+  // A safety app can never let someone get permanently stuck behind a
+  // failed biometric prompt (wrong/unenrolled sensor, no device PIN set,
+  // etc.) — that would block them from reaching the SOS button. This is
+  // the escape hatch: sign out and turn the lock off, landing back on
+  // the Welcome screen with no gate in front of it.
+  Future<void> _signOutInstead() async {
+    await BiometricLockPrefs.setEnabled(false);
+    await SupabaseService.client.auth.signOut();
+    if (!mounted) return;
+    widget.onUnlocked();
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -86,12 +100,20 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
                 const SizedBox(height: 24),
                 if (_isAuthenticating)
                   const CircularProgressIndicator()
-                else
+                else ...[
                   ElevatedButton.icon(
                     onPressed: _authenticate,
                     icon: const Icon(Icons.fingerprint),
                     label: const Text('Unlock'),
                   ),
+                  if (_failed) ...[
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: _signOutInstead,
+                      child: const Text('Sign out and turn off app lock'),
+                    ),
+                  ],
+                ],
               ],
             ),
           ),
