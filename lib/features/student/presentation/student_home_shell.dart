@@ -9,6 +9,7 @@ import 'alerts_screen.dart';
 import 'home_tab.dart';
 import 'map_tab.dart';
 import 'profile_tab.dart';
+import 'support_screen.dart';
 import 'walk_with_me/companion_invites_screen.dart';
 import 'widgets/student_drawer.dart';
 
@@ -102,6 +103,13 @@ class _StudentHomeShellState extends State<StudentHomeShell> {
                 ? _HomeHeaderTitle(firstName: firstName, campusName: campusName)
                 : Text(_tabIndex == 1 ? 'Map' : 'Profile'),
             actions: [
+              IconButton(
+                icon: const Icon(Icons.favorite_outline),
+                tooltip: 'Get Support',
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SupportScreen()),
+                ),
+              ),
               FutureBuilder<int>(
                 future: _unreadAlertsFuture,
                 builder: (context, unreadSnapshot) {

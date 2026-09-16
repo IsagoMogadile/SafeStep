@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 
 import '../../../../core/storage/storage_uploader.dart';
 import '../../../../core/supabase/supabase_service.dart';
@@ -68,6 +69,7 @@ class _ReportStep2ScreenState extends State<ReportStep2Screen> {
         'follow_up_requested': widget.followUpRequested,
         'status': 'new',
       });
+      HapticFeedback.mediumImpact();
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const ReportSuccessScreen()),

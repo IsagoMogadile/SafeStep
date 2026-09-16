@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/supabase/supabase_service.dart';
+import '../../../core/theme/theme_controller.dart';
 import '../../auth/presentation/welcome_screen.dart';
 import 'notification_preferences_screen.dart';
 
@@ -80,6 +81,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          Text('Appearance', style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 8),
+          ValueListenableBuilder<ThemeMode>(
+            valueListenable: ThemeController.instance,
+            builder: (context, mode, _) {
+              return SegmentedButton<ThemeMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: ThemeMode.system,
+                    label: Text('System'),
+                    icon: Icon(Icons.brightness_auto_outlined),
+                  ),
+                  ButtonSegment(
+                    value: ThemeMode.light,
+                    label: Text('Light'),
+                    icon: Icon(Icons.light_mode_outlined),
+                  ),
+                  ButtonSegment(
+                    value: ThemeMode.dark,
+                    label: Text('Dark'),
+                    icon: Icon(Icons.dark_mode_outlined),
+                  ),
+                ],
+                selected: {mode},
+                onSelectionChanged: (selection) =>
+                    ThemeController.instance.setMode(selection.first),
+              );
+            },
+          ),
+          const SizedBox(height: 24),
           ListTile(
             leading: const Icon(Icons.notifications_outlined),
             title: const Text('Notification preferences'),

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 
 import '../../../../core/supabase/supabase_service.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -65,6 +66,7 @@ class _SosHoldButtonState extends State<SosHoldButton>
       }
     }
 
+    HapticFeedback.heavyImpact(); // confirms the hold registered, for anyone not looking at the screen
     _controller.forward(from: 0);
     _showOverlay();
     // Gating this on `_controller.value >= 1.0` used to cause a real race:
@@ -76,6 +78,7 @@ class _SosHoldButtonState extends State<SosHoldButton>
     // This Timer only ever fires at all if `_cancelHold` didn't already
     // cancel it, which is itself sufficient proof the hold was long enough.
     _completionGuard = Timer(_holdDuration, () {
+      HapticFeedback.heavyImpact();
       _removeOverlay();
       widget.onActivated();
     });
@@ -129,54 +132,65 @@ class _SosHoldButtonState extends State<SosHoldButton>
     // cancels the hold with no feedback ("nothing happens" when held).
     // Tracking the pointer directly ignores movement and only reacts to
     // the finger actually lifting or the touch being cancelled by the OS.
-    return Listener(
-      onPointerDown: (_) => _startHold(),
-      onPointerUp: (_) => _cancelHold(),
-      onPointerCancel: (_) => _cancelHold(),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [AppColors.alert, Color(0xFFB91C1C)],
+    return Semantics(
+      button: true,
+      label: 'Emergency SOS',
+      hint:
+          'Hold for 3 seconds to send an alert with your location to '
+          'responders and trusted contacts',
+      child: Listener(
+        onPointerDown: (_) => _startHold(),
+        onPointerUp: (_) => _cancelHold(),
+        onPointerCancel: (_) => _cancelHold(),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [AppColors.alert, Color(0xFFB91C1C)],
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.18),
-                shape: BoxShape.circle,
+          child: Row(
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.campaign_outlined,
+                  color: Colors.white,
+                  size: 25,
+                ),
               ),
-              child: const Icon(Icons.campaign_outlined, color: Colors.white, size: 25),
-            ),
-            const SizedBox(width: 14),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Emergency SOS',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Emergency SOS',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Hold for 3 seconds to send an alert',
-                    style: TextStyle(color: Colors.white70, fontSize: 11.5),
-                  ),
-                ],
+                    SizedBox(height: 2),
+                    Text(
+                      'Hold for 3 seconds to send an alert',
+                      style: TextStyle(color: Colors.white70, fontSize: 11.5),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -215,28 +229,38 @@ class _SosCountdownSheet extends StatelessWidget {
                   AnimatedBuilder(
                     animation: controller,
                     builder: (context, child) {
-                      final secondsLeft = (3 - (controller.value * 3)).ceil().clamp(1, 3);
-                      return SizedBox(
-                        width: 92,
-                        height: 92,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            CircularProgressIndicator(
-                              value: controller.value,
-                              strokeWidth: 5,
-                              backgroundColor: AppColors.alert.withValues(alpha: 0.15),
-                              valueColor: const AlwaysStoppedAnimation(AppColors.alert),
-                            ),
-                            Text(
-                              '$secondsLeft',
-                              style: const TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.alert,
+                      final secondsLeft = (3 - (controller.value * 3))
+                          .ceil()
+                          .clamp(1, 3);
+                      return Semantics(
+                        liveRegion: true,
+                        label: '$secondsLeft seconds remaining, hold to send',
+                        child: SizedBox(
+                          width: 92,
+                          height: 92,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              CircularProgressIndicator(
+                                value: controller.value,
+                                strokeWidth: 5,
+                                backgroundColor: AppColors.alert.withValues(
+                                  alpha: 0.15,
+                                ),
+                                valueColor: const AlwaysStoppedAnimation(
+                                  AppColors.alert,
+                                ),
                               ),
-                            ),
-                          ],
+                              Text(
+                                '$secondsLeft',
+                                style: const TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.alert,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     },

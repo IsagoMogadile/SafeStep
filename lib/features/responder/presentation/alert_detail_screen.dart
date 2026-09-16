@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:intl/intl.dart';
 
 import '../../../core/supabase/supabase_service.dart';
@@ -58,6 +59,7 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
     setState(() => _isBusy = true);
     try {
       await action();
+      HapticFeedback.mediumImpact();
       await _refresh();
     } finally {
       if (mounted) setState(() => _isBusy = false);
