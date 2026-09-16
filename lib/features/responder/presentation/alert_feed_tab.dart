@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../data/responder_repository.dart';
@@ -16,9 +17,8 @@ const _typeLabel = {
   'walk_escalation': 'Check-in missed',
 };
 
-/// scope.md §6 "Home": feed of active alerts. Zone-scoping isn't wired
-/// (see AlertRepository), so this shows every alert this responder was
-/// fanned out to, in `alert_recipients` order.
+/// scope.md §6 "Home": feed of active alerts, scoped to this responder's
+/// assigned zone via the `alert_recipients` fan-out (see AlertRepository).
 class AlertFeedTab extends StatefulWidget {
   const AlertFeedTab({super.key, required this.responderId});
 
@@ -45,9 +45,13 @@ class _AlertFeedTabState extends State<AlertFeedTab> {
   }
 
   String _elapsedLabel(String triggeredAt) {
-    final elapsed = DateTime.now().difference(DateTime.parse(triggeredAt));
+    final elapsed = DateTime.now().difference(DateTime.parse(triggeredAt).toLocal());
     final minutes = elapsed.inMinutes;
     return minutes < 1 ? 'just now' : '$minutes min elapsed';
+  }
+
+  String _timestampLabel(String triggeredAt) {
+    return DateFormat('d MMM, HH:mm').format(DateTime.parse(triggeredAt).toLocal());
   }
 
   @override
@@ -107,6 +111,7 @@ class _AlertFeedTabState extends State<AlertFeedTab> {
                 ),
                 subtitle: Text(
                   '${zone?['name'] ?? 'Zone not set (prototype)'} · '
+                  '${_timestampLabel(alert['triggered_at'] as String)} · '
                   '${_elapsedLabel(alert['triggered_at'] as String)}',
                 ),
                 trailing: Chip(

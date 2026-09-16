@@ -2,6 +2,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
 
+/// Every timestamp written here uses `.toUtc()` before serializing —
+/// this database's session timezone is UTC, and it interprets any
+/// offset-less ISO string as already being in that timezone. Without
+/// `.toUtc()`, `DateTime.now().toIso8601String()` sends local wall-clock
+/// digits with no timezone marker at all, which Postgres then reads as
+/// UTC — silently shifting every stored instant by the device's UTC
+/// offset. That's the exact root cause of "1 minute" journeys reading
+/// back as hours: `started_at` got stored hours in the future (on a
+/// UTC+2 device), so `deadline - now()` came out hours too large.
 class WalkSessionRepository {
   WalkSessionRepository({SupabaseClient? client})
     : _client = client ?? SupabaseService.client;
@@ -27,7 +36,7 @@ class WalkSessionRepository {
           'start_lat': startLat,
           'start_lng': startLng,
           'status': 'active',
-          'started_at': DateTime.now().toIso8601String(),
+          'started_at': DateTime.now().toUtc().toIso8601String(),
         })
         .select()
         .single();
@@ -71,7 +80,7 @@ class WalkSessionRepository {
   Future<void> acceptCompanionInvite(String sessionId) async {
     await _client
         .from('walk_sessions')
-        .update({'companion_accepted_at': DateTime.now().toIso8601String()})
+        .update({'companion_accepted_at': DateTime.now().toUtc().toIso8601String()})
         .eq('session_id', sessionId);
   }
 
@@ -96,7 +105,7 @@ class WalkSessionRepository {
           'start_lng': startLng,
           'monitor_contact_ids': monitorContactIds,
           'status': 'active',
-          'started_at': DateTime.now().toIso8601String(),
+          'started_at': DateTime.now().toUtc().toIso8601String(),
         })
         .select()
         .single();
@@ -120,7 +129,7 @@ class WalkSessionRepository {
         .from('walk_sessions')
         .update({
           'status': 'arrived',
-          'ended_at': DateTime.now().toIso8601String(),
+          'ended_at': DateTime.now().toUtc().toIso8601String(),
         })
         .eq('session_id', sessionId);
   }

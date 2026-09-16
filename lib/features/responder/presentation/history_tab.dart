@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../data/responder_repository.dart';
+
+String _timestampLabel(String iso) =>
+    DateFormat('d MMM yyyy, HH:mm').format(DateTime.parse(iso).toLocal());
 
 /// scope.md §6 "History": past resolved/closed alerts.
 class HistoryTab extends StatefulWidget {
@@ -63,7 +67,12 @@ class _HistoryTabState extends State<HistoryTab> {
                 '${student?['full_name'] ?? 'Unknown student'} — '
                 '${isFalseAlarm ? 'False alarm' : 'Resolved'}',
               ),
-              subtitle: Text(alert['responder_notes'] as String? ?? 'No notes'),
+              subtitle: Text(
+                'Triggered ${_timestampLabel(alert['triggered_at'] as String)}'
+                '${alert['resolved_at'] != null ? ' · Resolved ${_timestampLabel(alert['resolved_at'] as String)}' : ''}'
+                '\n${alert['responder_notes'] as String? ?? 'No notes'}',
+              ),
+              isThreeLine: true,
             );
           },
         );

@@ -108,7 +108,7 @@ class AdminRepository {
         .update({
           'status': 'resolved',
           if (notes != null && notes.isNotEmpty) 'responder_notes': notes,
-          'resolved_at': DateTime.now().toIso8601String(),
+          'resolved_at': DateTime.now().toUtc().toIso8601String(),
         })
         .eq('alert_id', alertId);
   }
@@ -259,15 +259,18 @@ class AdminRepository {
       'level': level,
       'target_campus_id': targetCampusId,
       'created_by': adminId,
-      'scheduled_at': scheduledAt?.toIso8601String(),
-      'sent_at': isImmediate ? now.toIso8601String() : null,
+      // .toUtc(): the DB session timezone is UTC and reads an
+      // offset-less timestamp as already UTC, so a local DateTime here
+      // would silently store hours off by the device's own UTC offset.
+      'scheduled_at': scheduledAt?.toUtc().toIso8601String(),
+      'sent_at': isImmediate ? now.toUtc().toIso8601String() : null,
     });
   }
 
   Future<void> retractBroadcast(String broadcastId) {
     return _client
         .from('safety_broadcasts')
-        .update({'retracted_at': DateTime.now().toIso8601String()})
+        .update({'retracted_at': DateTime.now().toUtc().toIso8601String()})
         .eq('broadcast_id', broadcastId);
   }
 

@@ -53,7 +53,7 @@ class ResponderRepository {
         .eq('status', 'new');
     await _client
         .from('alert_recipients')
-        .update({'acknowledged_at': DateTime.now().toIso8601String()})
+        .update({'acknowledged_at': DateTime.now().toUtc().toIso8601String()})
         .eq('alert_id', alertId)
         .eq('responder_id', responderId);
   }
@@ -75,7 +75,7 @@ class ResponderRepository {
         .update({
           'status': 'resolved',
           'responder_notes': notes,
-          'resolved_at': DateTime.now().toIso8601String(),
+          'resolved_at': DateTime.now().toUtc().toIso8601String(),
         })
         .eq('alert_id', alertId);
   }

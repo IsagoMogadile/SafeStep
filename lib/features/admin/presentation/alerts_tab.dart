@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../data/admin_repository.dart';
 import '../domain/admin_enums.dart';
 import 'admin_alert_detail_screen.dart';
 import 'widgets/admin_async_error.dart';
+
+String _formatTimestamp(String iso) =>
+    DateFormat('d MMM yyyy, HH:mm').format(DateTime.parse(iso).toLocal());
 
 /// Admin-wide alert visibility — every alert across every zone, not just
 /// the ones a particular responder was notified about. Tapping a row
@@ -94,7 +98,7 @@ class _AlertRow extends StatelessWidget {
               ? 'Silent alert'
               : alertType == 'walk_escalation'
               ? 'Walk With Me escalation'
-              : 'Panic alert'} · ${alert['triggered_at']}',
+              : 'Panic alert'} · ${_formatTimestamp(alert['triggered_at'] as String)}',
         ),
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),

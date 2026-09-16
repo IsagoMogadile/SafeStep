@@ -78,11 +78,22 @@ class _StudentWizardScreenState extends State<StudentWizardScreen> {
 
   void _goToStep(int step) {
     setState(() => _step = step);
-    _pageController.animateToPage(
-      step,
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeInOut,
-    );
+    // animateToPage() needs the PageView to already be attached to this
+    // controller. Calling it in the same tick as setState() races that —
+    // on the very first step transition (right after signup) the
+    // attachment sometimes hasn't happened yet, so the animation
+    // silently no-ops: `_step` moves on internally but the visible page
+    // stays put, until the *next* step change (which now finds the
+    // controller attached) "catches up" and fixes it. Deferring to a
+    // post-frame callback guarantees the controller is attached first.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_pageController.hasClients) return;
+      _pageController.animateToPage(
+        step,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeInOut,
+      );
+    });
   }
 
   Future<void> _next() async {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/supabase/supabase_service.dart';
 import '../../../core/theme/app_theme.dart';
@@ -10,6 +11,9 @@ const _typeLabel = {
   'silent': 'Silent alert (unconfirmed)',
   'walk_escalation': 'Missed check-in',
 };
+
+String _formatTimestamp(String iso) =>
+    DateFormat('d MMM yyyy, HH:mm').format(DateTime.parse(iso).toLocal());
 
 /// scope.md §6 "Alert detail": student location + medical info banner
 /// (only while active) + status actions.
@@ -97,6 +101,13 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
                           Text(
                             '${_typeLabel[alert['alert_type']] ?? 'Alert'} · '
                             '${zone?['name'] ?? 'Zone not set (prototype)'}',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          Text(
+                            'Triggered ${_formatTimestamp(alert['triggered_at'] as String)}'
+                            '${alert['resolved_at'] != null ? ' · Resolved ${_formatTimestamp(alert['resolved_at'] as String)}' : ''}',
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: colorScheme.onSurfaceVariant,
                             ),

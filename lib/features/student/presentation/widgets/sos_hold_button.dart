@@ -2,8 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/supabase/supabase_service.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../data/sos_rate_limit_prefs.dart';
+import '../../data/alert_repository.dart';
 
 /// The panic button, matching docs/prototype.html's `.sos-launch` design:
 /// a horizontal red card that must be held for 3 seconds (scope.md §5 —
@@ -27,6 +28,7 @@ class _SosHoldButtonState extends State<SosHoldButton>
     with SingleTickerProviderStateMixin {
   static const _holdDuration = Duration(seconds: 3);
 
+  final _repository = AlertRepository();
   late final AnimationController _controller;
   OverlayEntry? _overlayEntry;
   Timer? _completionGuard;
@@ -47,14 +49,20 @@ class _SosHoldButtonState extends State<SosHoldButton>
 
   Future<void> _startHold() async {
     // Misuse-prevention (hackathon brief §7): no more than 3 SOS triggers
-    // in any rolling 10 minutes — a 4th attempt starts a 1-hour on-device
-    // ban. Checked here, before the hold even starts, so a banned student
-    // gets immediate feedback instead of holding for 3 seconds for
-    // nothing.
-    final bannedUntil = await SosRateLimitPrefs.bannedUntil();
-    if (bannedUntil != null) {
-      if (mounted) _showBannedMessage(bannedUntil);
-      return;
+    // per *student* in any rolling 10 minutes — a 4th attempt starts a
+    // 1-hour ban for that account. Tracked server-side, off the
+    // student's own `alerts` history (see AlertRepository.checkSosGate)
+    // rather than on-device, so testing multiple accounts on one phone
+    // doesn't cross-contaminate bans between them. Checked here, before
+    // the hold even starts, so a banned student gets immediate feedback
+    // instead of holding for 3 seconds for nothing.
+    final userId = SupabaseService.client.auth.currentUser?.id;
+    if (userId != null) {
+      final bannedUntil = await _repository.checkSosGate(userId);
+      if (bannedUntil != null) {
+        if (mounted) _showBannedMessage(bannedUntil);
+        return;
+      }
     }
 
     _controller.forward(from: 0);
@@ -67,13 +75,8 @@ class _SosHoldButtonState extends State<SosHoldButton>
     // no error, no alert, and an overlay that only ever closed on finger-up.
     // This Timer only ever fires at all if `_cancelHold` didn't already
     // cancel it, which is itself sufficient proof the hold was long enough.
-    _completionGuard = Timer(_holdDuration, () async {
+    _completionGuard = Timer(_holdDuration, () {
       _removeOverlay();
-      final freshBan = await SosRateLimitPrefs.checkAndRecord();
-      if (freshBan != null) {
-        if (mounted) _showBannedMessage(freshBan, justTriggered: true);
-        return;
-      }
       widget.onActivated();
     });
   }

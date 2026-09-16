@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../data/admin_repository.dart';
@@ -9,6 +10,9 @@ const _typeLabel = {
   'silent': 'Silent alert (unconfirmed)',
   'walk_escalation': 'Missed check-in',
 };
+
+String _formatTimestamp(String iso) =>
+    DateFormat('d MMM yyyy, HH:mm').format(DateTime.parse(iso).toLocal());
 
 /// Admin's full-oversight view of a single alert (scope.md §6 fields,
 /// admin flavor): student + zone + medical banner while active, plus the
@@ -143,8 +147,8 @@ class _AdminAlertDetailScreenState extends State<AdminAlertDetailScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Triggered ${alert['triggered_at']}'
-                  '${alert['resolved_at'] != null ? ' · Resolved ${alert['resolved_at']}' : ''}',
+                  'Triggered ${_formatTimestamp(alert['triggered_at'] as String)}'
+                  '${alert['resolved_at'] != null ? ' · Resolved ${_formatTimestamp(alert['resolved_at'] as String)}' : ''}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 if (isActive && alert['alert_type'] == 'silent') ...[
