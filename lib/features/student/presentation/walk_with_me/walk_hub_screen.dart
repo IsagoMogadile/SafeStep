@@ -11,7 +11,7 @@ class WalkHubScreen extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Walk With Me')),
+      appBar: AppBar(title: const Text('Safe Walks')),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [

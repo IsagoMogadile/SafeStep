@@ -52,8 +52,8 @@ class NotificationService {
   }) async {
     final details = AndroidNotificationDetails(
       _channelId,
-      'Walk With Me',
-      channelDescription: 'Ongoing journey status while Walk With Me is active',
+      'Safe Walks',
+      channelDescription: 'Ongoing journey status while Safe Walks is active',
       importance: Importance.low,
       priority: Priority.low,
       ongoing: true,

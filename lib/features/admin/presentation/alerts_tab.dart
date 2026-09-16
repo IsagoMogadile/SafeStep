@@ -97,7 +97,7 @@ class _AlertRow extends StatelessWidget {
           '${alertType == 'silent'
               ? 'Silent alert'
               : alertType == 'walk_escalation'
-              ? 'Walk With Me escalation'
+              ? 'Safe Walks escalation'
               : 'Panic alert'} · ${_formatTimestamp(alert['triggered_at'] as String)}',
         ),
         trailing: Container(

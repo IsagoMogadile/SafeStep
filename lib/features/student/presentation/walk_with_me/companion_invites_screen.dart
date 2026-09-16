@@ -114,7 +114,7 @@ class _InviteCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '$inviterName invited you to Walk With Me',
+                        '$inviterName invited you to Safe Walks',
                         style: Theme.of(context).textTheme.titleSmall,
                       ),
                       Text(

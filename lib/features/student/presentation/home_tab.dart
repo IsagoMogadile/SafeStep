@@ -4,8 +4,8 @@ import '../../../core/connectivity/connectivity_service.dart';
 import '../../../core/theme/app_theme.dart';
 import 'active_sos_screen.dart';
 import 'call_security_screen.dart';
-import 'map_tab.dart';
 import 'report_concern/report_step1_screen.dart';
+import 'safe_ride_screen.dart';
 import 'walk_with_me/walk_hub_screen.dart';
 import 'widgets/quick_action_tile.dart';
 import 'widgets/silent_alert_trigger.dart';
@@ -142,8 +142,8 @@ class HomeTab extends StatelessWidget {
                                 Expanded(
                                   child: Text(
                                     count == 1
-                                        ? 'You have a Walk With Me companion invite'
-                                        : 'You have $count Walk With Me companion invites',
+                                        ? 'You have a Safe Walks companion invite'
+                                        : 'You have $count Safe Walks companion invites',
                                     style: const TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w700,
@@ -188,16 +188,16 @@ class HomeTab extends StatelessWidget {
                     ),
                     QuickActionTile(
                       icon: Icons.directions_walk,
-                      label: 'Walk With Me',
+                      label: 'Safe Walks',
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const WalkHubScreen()),
                       ),
                     ),
                     QuickActionTile(
-                      icon: Icons.map_outlined,
-                      label: 'Map',
+                      icon: Icons.local_taxi_outlined,
+                      label: 'Safe Ride',
                       onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const MapTab()),
+                        MaterialPageRoute(builder: (_) => const SafeRideScreen()),
                       ),
                     ),
                     QuickActionTile(

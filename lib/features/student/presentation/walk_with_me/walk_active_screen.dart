@@ -82,7 +82,7 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
   /// than requiring SafeStep to stay in the foreground.
   Future<void> _showNotification() async {
     await NotificationService.instance.showJourneyNotification(
-      title: 'Walk With Me — ${_session['destination'] ?? 'journey'}',
+      title: 'Safe Walks — ${_session['destination'] ?? 'journey'}',
       body: _isTimerMode
           ? 'Time remaining: $_remainingLabel'
           : 'Your companion can see your journey status',

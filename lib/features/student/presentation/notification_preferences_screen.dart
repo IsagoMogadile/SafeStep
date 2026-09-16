@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const _prefKeys = {
   'safety_alerts': 'Safety alerts',
-  'walk_with_me': 'Walk With Me reminders',
+  'walk_with_me': 'Safe Walks reminders',
   'group_messages': 'Group messages',
   'report_updates': 'Report status updates',
 };
