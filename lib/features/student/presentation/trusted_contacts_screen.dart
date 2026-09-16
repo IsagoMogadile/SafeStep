@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/supabase/supabase_service.dart';
+import '../../../core/widgets/skeleton_loader.dart';
 import '../../auth/data/trusted_contact_repository.dart';
 import '../../auth/presentation/widgets/add_contact_sheet.dart';
 
@@ -40,28 +41,23 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
     if (added == true) _refresh();
   }
 
-  Future<void> _removeContact(String contactId, String name) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remove contact?'),
-        content: Text('Remove $name from your trusted contacts?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Remove'),
-          ),
-        ],
+  Future<void> _removeContact(Map<String, dynamic> contact) async {
+    final name = contact['name'] as String? ?? 'this contact';
+    await _repository.removeContact(contact['contact_id'] as String);
+    _refresh();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Removed $name'),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () async {
+            await _repository.restoreContact(contact);
+            _refresh();
+          },
+        ),
       ),
     );
-    if (confirmed == true) {
-      await _repository.removeContact(contactId);
-      _refresh();
-    }
   }
 
   @override
@@ -74,7 +70,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
         future: _contactsFuture,
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
+            return const SkeletonList();
           }
           final contacts = snapshot.data!;
           return Column(
@@ -95,9 +91,31 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
               Expanded(
                 child: contacts.isEmpty
                     ? Center(
-                        child: Text(
-                          'No contacts yet',
-                          style: TextStyle(color: colorScheme.onSurfaceVariant),
+                        child: Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.people_outline,
+                                size: 40,
+                                color: colorScheme.outline,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'No trusted contacts yet',
+                                style: Theme.of(context).textTheme.titleSmall,
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Add at least $_minContacts people who should be '
+                                "notified with your location whenever you send an "
+                                'alert.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: colorScheme.onSurfaceVariant),
+                              ),
+                            ],
+                          ),
                         ),
                       )
                     : ListView.builder(
@@ -131,10 +149,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                                   ),
                                   IconButton(
                                     icon: const Icon(Icons.close, size: 18),
-                                    onPressed: () => _removeContact(
-                                      contact['contact_id'] as String,
-                                      contact['name'] as String? ?? 'this contact',
-                                    ),
+                                    onPressed: () => _removeContact(contact),
                                   ),
                                 ],
                               ),

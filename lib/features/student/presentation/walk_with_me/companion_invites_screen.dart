@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../../core/supabase/supabase_service.dart';
+import '../../../../core/widgets/skeleton_loader.dart';
 import '../../data/walk_session_repository.dart';
 import 'widgets/route_map_view.dart';
 
@@ -54,7 +55,7 @@ class _CompanionInvitesScreenState extends State<CompanionInvitesScreen> {
           future: _invitesFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
+              return const SkeletonList();
             }
             if (snapshot.hasError) {
               return Center(child: Text('${snapshot.error}'));

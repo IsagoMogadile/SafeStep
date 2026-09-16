@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/supabase/supabase_service.dart';
+import '../../../core/widgets/skeleton_loader.dart';
 
 /// scope.md §5 "Safety resources": seeded guidance + admin-verified
 /// community-submitted tips, read from the real `resources` table.
@@ -13,16 +14,24 @@ class SafetyResourcesScreen extends StatefulWidget {
 }
 
 class _SafetyResourcesScreenState extends State<SafetyResourcesScreen> {
-  late final Future<List<Map<String, dynamic>>> _resourcesFuture;
+  late Future<List<Map<String, dynamic>>> _resourcesFuture;
 
   @override
   void initState() {
     super.initState();
-    _resourcesFuture = SupabaseService.client
+    _resourcesFuture = _fetchResources();
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchResources() {
+    return SupabaseService.client
         .from('resources')
         .select()
         .eq('status', 'published')
         .order('created_at');
+  }
+
+  Future<void> _refresh() async {
+    setState(() { _resourcesFuture = _fetchResources(); });
   }
 
   IconData _iconFor(String? type) {
@@ -38,52 +47,75 @@ class _SafetyResourcesScreenState extends State<SafetyResourcesScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Safety Resources')),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _resourcesFuture,
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final resources = snapshot.data!;
-          if (resources.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Text(
-                  'No published resources yet. Check back soon.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: colorScheme.onSurfaceVariant),
-                ),
-              ),
-            );
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.all(20),
-            itemCount: resources.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final resource = resources[index];
-              return ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: CircleAvatar(
-                  backgroundColor: colorScheme.primaryContainer,
-                  child: Icon(
-                    _iconFor(resource['type'] as String?),
-                    color: colorScheme.onPrimaryContainer,
-                    size: 20,
+      body: RefreshIndicator(
+        onRefresh: _refresh,
+        child: FutureBuilder<List<Map<String, dynamic>>>(
+          future: _resourcesFuture,
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const SkeletonList();
+            }
+            final resources = snapshot.data!;
+            if (resources.isEmpty) {
+              return ListView(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(48),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.menu_book_outlined,
+                            size: 40,
+                            color: colorScheme.outline,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No published resources yet',
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Check back soon, or pull down to refresh.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: colorScheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-                title: Text(resource['title'] as String? ?? ''),
-                subtitle: Text(resource['category'] as String? ?? ''),
-                onTap: () => showModalBottomSheet<void>(
-                  context: context,
-                  isScrollControlled: true,
-                  builder: (context) => _ResourceDetailSheet(resource: resource),
-                ),
+                ],
               );
-            },
-          );
-        },
+            }
+            return ListView.separated(
+              padding: const EdgeInsets.all(20),
+              itemCount: resources.length,
+              separatorBuilder: (_, _) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final resource = resources[index];
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    backgroundColor: colorScheme.primaryContainer,
+                    child: Icon(
+                      _iconFor(resource['type'] as String?),
+                      color: colorScheme.onPrimaryContainer,
+                      size: 20,
+                    ),
+                  ),
+                  title: Text(resource['title'] as String? ?? ''),
+                  subtitle: Text(resource['category'] as String? ?? ''),
+                  onTap: () => showModalBottomSheet<void>(
+                    context: context,
+                    isScrollControlled: true,
+                    builder: (context) => _ResourceDetailSheet(resource: resource),
+                  ),
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }

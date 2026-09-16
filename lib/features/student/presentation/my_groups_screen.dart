@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/supabase/supabase_service.dart';
+import '../../../core/widgets/skeleton_loader.dart';
 import 'group_detail_screen.dart';
 
 const _statusColors = {
@@ -71,7 +72,7 @@ class _MyGroupsScreenState extends State<MyGroupsScreen> {
           future: _groupsFuture,
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
+              return const SkeletonList();
             }
             final groups = snapshot.data!;
             if (groups.isEmpty) {
@@ -80,10 +81,23 @@ class _MyGroupsScreenState extends State<MyGroupsScreen> {
                   Padding(
                     padding: const EdgeInsets.all(48),
                     child: Center(
-                      child: Text(
-                        "You haven't joined or created any groups yet",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: colorScheme.onSurfaceVariant),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.groups_outlined, size: 40, color: colorScheme.outline),
+                          const SizedBox(height: 12),
+                          Text(
+                            "You haven't joined or created any groups yet",
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Browse approved groups to join, or create your own.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: colorScheme.onSurfaceVariant),
+                          ),
+                        ],
                       ),
                     ),
                   ),

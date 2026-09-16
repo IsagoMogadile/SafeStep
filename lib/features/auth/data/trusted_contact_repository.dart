@@ -55,4 +55,21 @@ class TrustedContactRepository {
   Future<void> removeContact(String contactId) async {
     await _client.from('trusted_contacts').delete().eq('contact_id', contactId);
   }
+
+  /// Re-creates a contact from the row data of one just removed — used
+  /// for the "Undo" action on the remove-contact SnackBar. Gets a fresh
+  /// contact_id rather than restoring the exact same row, which is fine
+  /// since nothing else references a trusted_contacts row by id across a
+  /// delete (alert_recipients cascades away with the original delete).
+  Future<void> restoreContact(Map<String, dynamic> contact) async {
+    await _client.from('trusted_contacts').insert({
+      'student_id': contact['student_id'],
+      'name': contact['name'],
+      'relationship': contact['relationship'],
+      'email': contact['email'],
+      'phone': contact['phone'],
+      'linked_student_id': contact['linked_student_id'],
+      'status': contact['status'],
+    });
+  }
 }

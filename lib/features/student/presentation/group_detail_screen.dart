@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/supabase/supabase_service.dart';
+import '../../../core/widgets/skeleton_loader.dart';
 import '../data/group_repository.dart';
 import '../domain/group_preset_messages.dart';
 
@@ -78,15 +79,31 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   }
 
   Future<void> _toggleMembership() async {
+    final wasMember = _isMember;
     setState(() => _isBusy = true);
     try {
-      if (_isMember) {
+      if (wasMember) {
         await _repository.leave(widget.groupId, _userId);
       } else {
         await _repository.join(widget.groupId, _userId);
       }
       await _checkMembership();
       _refresh();
+      if (wasMember && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('You left this group'),
+            action: SnackBarAction(
+              label: 'Undo',
+              onPressed: () async {
+                await _repository.join(widget.groupId, _userId);
+                await _checkMembership();
+                _refresh();
+              },
+            ),
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -172,7 +189,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       future: _membersFuture,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
+          return const SkeletonList();
         }
         final members = snapshot.data!;
         if (members.isEmpty) {

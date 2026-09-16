@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/supabase/supabase_service.dart';
+import '../../../core/widgets/skeleton_loader.dart';
 import 'group_detail_screen.dart';
 
 /// Only approved groups — students never see pending-approval groups
@@ -46,7 +47,7 @@ class _BrowseGroupsScreenState extends State<BrowseGroupsScreen> {
           future: _groupsFuture,
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
+              return const SkeletonList();
             }
             final groups = snapshot.data!;
             if (groups.isEmpty) {
@@ -55,9 +56,23 @@ class _BrowseGroupsScreenState extends State<BrowseGroupsScreen> {
                   Padding(
                     padding: const EdgeInsets.all(48),
                     child: Center(
-                      child: Text(
-                        'No approved groups yet',
-                        style: TextStyle(color: colorScheme.onSurfaceVariant),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.groups_outlined, size: 40, color: colorScheme.outline),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No approved groups yet',
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Be the first — create one from My Groups and an '
+                            'admin will review it.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: colorScheme.onSurfaceVariant),
+                          ),
+                        ],
                       ),
                     ),
                   ),
