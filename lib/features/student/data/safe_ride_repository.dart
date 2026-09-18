@@ -74,6 +74,21 @@ class SafeRideRepository {
       'source': 'student_report',
       'reported_by_student_id': studentId,
       'occurred_at': DateTime.now().toUtc().toIso8601String(),
+      // Pending until an admin reviews it — never posted straight from
+      // the reporter (feedback: "they are not to be posted").
+      'status': 'pending_review',
     });
+  }
+
+  /// This student's own Safe Ride reports, for the "report received /
+  /// report resolved" notification poller — mirrors AlertStatusPoller's
+  /// pattern for panic alerts.
+  Future<List<Map<String, dynamic>>> fetchOwnReports(String studentId) {
+    return _client
+        .from('vehicle_offenses')
+        .select('offense_id, status, created_at, reviewed_at, vehicle_records(plate_number)')
+        .eq('reported_by_student_id', studentId)
+        .order('created_at', ascending: false)
+        .limit(10);
   }
 }

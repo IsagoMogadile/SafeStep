@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../auth/presentation/auth_gate.dart';
 import 'onboarding_prefs.dart';
+import 'terms_screen.dart';
 
 class _OnboardingSlide {
   const _OnboardingSlide({
@@ -70,11 +71,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
-  Future<void> _finish() async {
+  void _finish() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => TermsScreen(onAccepted: _acceptTerms)),
+    );
+  }
+
+  Future<void> _acceptTerms() async {
     await OnboardingPrefs.markSeen();
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(
+    Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const AuthGate()),
+      (route) => false,
     );
   }
 

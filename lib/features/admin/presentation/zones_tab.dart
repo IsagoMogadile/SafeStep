@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../data/admin_repository.dart';
 import '../domain/admin_enums.dart';
 import 'widgets/admin_async_error.dart';
+import 'widgets/location_picker_map.dart';
 
 /// scope.md §7 "Manage zones": create/edit on-campus + Summerstrand
 /// zones, risk status, which org(s) cover each.
@@ -40,6 +42,12 @@ class _ZonesTabState extends State<ZonesTab> {
     String? campusId = existing?['campus_id'] as String?;
     String riskStatus = existing?['risk_status'] as String? ?? 'safe';
     String coveredBy = existing?['covered_by'] as String? ?? 'nmu';
+    LatLng? point;
+    final existingLat = existing?['lat'] as num?;
+    final existingLng = existing?['lng'] as num?;
+    if (existingLat != null && existingLng != null) {
+      point = LatLng(existingLat.toDouble(), existingLng.toDouble());
+    }
 
     final saved = await showDialog<bool>(
       context: context,
@@ -47,7 +55,7 @@ class _ZonesTabState extends State<ZonesTab> {
         builder: (context, setDialogState) => AlertDialog(
           title: Text(existing == null ? 'Create zone' : 'Edit zone'),
           content: SizedBox(
-            width: 420,
+            width: 480,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -102,6 +110,19 @@ class _ZonesTabState extends State<ZonesTab> {
                     ],
                     onChanged: (v) => setDialogState(() => coveredBy = v!),
                   ),
+                  const SizedBox(height: 16),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Zone location',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  LocationPickerMap(
+                    initial: point,
+                    onChanged: (p) => point = p,
+                  ),
                 ],
               ),
             ),
@@ -121,6 +142,8 @@ class _ZonesTabState extends State<ZonesTab> {
                     campusId: campusId,
                     riskStatus: riskStatus,
                     coveredBy: coveredBy,
+                    lat: point?.latitude,
+                    lng: point?.longitude,
                   );
                 } else {
                   await _repository.updateZone(existing['zone_id'] as String, {
@@ -129,6 +152,8 @@ class _ZonesTabState extends State<ZonesTab> {
                     'campus_id': campusId,
                     'risk_status': riskStatus,
                     'covered_by': coveredBy,
+                    'lat': point?.latitude,
+                    'lng': point?.longitude,
                   });
                 }
                 if (context.mounted) Navigator.of(context).pop(true);

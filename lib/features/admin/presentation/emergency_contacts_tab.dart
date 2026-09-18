@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/validation/validators.dart';
 import '../data/admin_repository.dart';
 import 'widgets/admin_async_error.dart';
 
@@ -27,6 +28,7 @@ class _EmergencyContactsTabState extends State<EmergencyContactsTab> {
   Future<void> _openForm({Map<String, dynamic>? existing}) async {
     final nameController = TextEditingController(text: existing?['service_name'] as String?);
     final phoneController = TextEditingController(text: existing?['phone_number'] as String?);
+    final formKey = GlobalKey<FormState>();
 
     final saved = await showDialog<bool>(
       context: context,
@@ -34,20 +36,25 @@ class _EmergencyContactsTabState extends State<EmergencyContactsTab> {
         title: Text(existing == null ? 'Add emergency contact' : 'Edit emergency contact'),
         content: SizedBox(
           width: 380,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Service name'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: phoneController,
-                decoration: const InputDecoration(labelText: 'Phone number'),
-                keyboardType: TextInputType.phone,
-              ),
-            ],
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Service name'),
+                  validator: (v) => requiredValidator(v, field: 'Service name'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: phoneController,
+                  decoration: const InputDecoration(labelText: 'Phone number'),
+                  keyboardType: TextInputType.phone,
+                  validator: (v) => phoneValidator(v, required: true),
+                ),
+              ],
+            ),
           ),
         ),
         actions: [
@@ -57,9 +64,7 @@ class _EmergencyContactsTabState extends State<EmergencyContactsTab> {
           ),
           FilledButton(
             onPressed: () async {
-              if (nameController.text.trim().isEmpty || phoneController.text.trim().isEmpty) {
-                return;
-              }
+              if (!formKey.currentState!.validate()) return;
               if (existing == null) {
                 await _repository.createEmergencyContact(
                   serviceName: nameController.text.trim(),

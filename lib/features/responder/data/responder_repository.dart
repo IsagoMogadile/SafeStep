@@ -19,7 +19,10 @@ class ResponderRepository {
   Future<Map<String, dynamic>?> fetchSelf(String userId) {
     return _client
         .from('responders')
-        .select('responder_id, full_name, organization, coverage_zone_id, zones(name)')
+        .select(
+          'responder_id, full_name, organization, coverage_zone_id, '
+          'zones(name, lat, lng)',
+        )
         .eq('user_id', userId)
         .maybeSingle();
   }

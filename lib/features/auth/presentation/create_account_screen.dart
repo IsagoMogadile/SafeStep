@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../admin/presentation/admin_mobile_notice_screen.dart';
+import '../../admin/presentation/admin_home_shell.dart';
 import '../../responder/presentation/responder_home_shell.dart';
 import '../data/auth_repository.dart';
 import '../domain/app_role.dart';
@@ -92,7 +92,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
       final destination = switch (invite.role) {
         AppRole.responder => const ResponderHomeShell(),
-        AppRole.admin => const AdminMobileNoticeScreen(),
+        AppRole.admin => const AdminHomeShell(),
         AppRole.student => throw StateError('Invites are never students'),
       };
 

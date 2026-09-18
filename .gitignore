@@ -49,3 +49,9 @@ app.*.map.json
 
 # Environment secrets (Supabase, Google Maps keys) — never commit real values
 .env
+
+# Office lock files
+~$*
+
+# Supabase CLI local cache
+supabase/.temp/

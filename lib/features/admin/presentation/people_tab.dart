@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/validation/validators.dart';
 import '../data/admin_repository.dart';
 import '../domain/admin_enums.dart';
 import 'widgets/admin_async_error.dart';
@@ -41,6 +42,7 @@ class _PeopleTabState extends State<PeopleTab> with SingleTickerProviderStateMix
     final emailController = TextEditingController();
     final nameController = TextEditingController();
     final phoneController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
     String organization = 'nmu_campus_security';
     String? coverageZoneId = zones.isNotEmpty ? zones.first['zone_id'] as String : null;
 
@@ -52,23 +54,28 @@ class _PeopleTabState extends State<PeopleTab> with SingleTickerProviderStateMix
           content: SizedBox(
             width: 420,
             child: SingleChildScrollView(
-              child: Column(
+              child: Form(
+                key: formKey,
+                child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(
+                  TextFormField(
                     controller: nameController,
                     decoration: const InputDecoration(labelText: 'Full name'),
+                    validator: (v) => requiredValidator(v, field: 'Full name'),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  TextFormField(
                     controller: emailController,
                     decoration: const InputDecoration(labelText: 'Email'),
                     keyboardType: TextInputType.emailAddress,
+                    validator: emailValidator,
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  TextFormField(
                     controller: phoneController,
-                    decoration: const InputDecoration(labelText: 'Phone (optional)'),
+                    decoration: const InputDecoration(labelText: 'Phone'),
+                    validator: (v) => phoneValidator(v, required: true),
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
@@ -100,6 +107,7 @@ class _PeopleTabState extends State<PeopleTab> with SingleTickerProviderStateMix
                     onChanged: (v) => setDialogState(() => coverageZoneId = v),
                   ),
                 ],
+                ),
               ),
             ),
           ),
@@ -110,10 +118,7 @@ class _PeopleTabState extends State<PeopleTab> with SingleTickerProviderStateMix
             ),
             FilledButton(
               onPressed: () async {
-                if (emailController.text.trim().isEmpty ||
-                    nameController.text.trim().isEmpty) {
-                  return;
-                }
+                if (!formKey.currentState!.validate()) return;
                 await _repository.inviteResponder(
                   email: emailController.text.trim(),
                   fullName: nameController.text.trim(),
@@ -149,6 +154,8 @@ class _PeopleTabState extends State<PeopleTab> with SingleTickerProviderStateMix
   Future<void> _openInviteAdmin() async {
     final emailController = TextEditingController();
     final nameController = TextEditingController();
+    final phoneController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
 
     final created = await showDialog<bool>(
       context: context,
@@ -156,20 +163,31 @@ class _PeopleTabState extends State<PeopleTab> with SingleTickerProviderStateMix
         title: const Text('Invite an admin'),
         content: SizedBox(
           width: 380,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Full name'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: emailController,
-                decoration: const InputDecoration(labelText: 'Email'),
-                keyboardType: TextInputType.emailAddress,
-              ),
-            ],
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Full name'),
+                  validator: (v) => requiredValidator(v, field: 'Full name'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: emailController,
+                  decoration: const InputDecoration(labelText: 'Email'),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: emailValidator,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: phoneController,
+                  decoration: const InputDecoration(labelText: 'Phone'),
+                  validator: (v) => phoneValidator(v, required: true),
+                ),
+              ],
+            ),
           ),
         ),
         actions: [
@@ -179,13 +197,11 @@ class _PeopleTabState extends State<PeopleTab> with SingleTickerProviderStateMix
           ),
           FilledButton(
             onPressed: () async {
-              if (emailController.text.trim().isEmpty ||
-                  nameController.text.trim().isEmpty) {
-                return;
-              }
+              if (!formKey.currentState!.validate()) return;
               await _repository.inviteAdmin(
                 email: emailController.text.trim(),
                 fullName: nameController.text.trim(),
+                phone: phoneController.text.trim(),
               );
               if (context.mounted) Navigator.of(context).pop(true);
             },
@@ -341,7 +357,7 @@ class _PeopleTabState extends State<PeopleTab> with SingleTickerProviderStateMix
                   leading: const CircleAvatar(child: Icon(Icons.admin_panel_settings_outlined)),
                   title: Text(a['full_name'] as String? ?? a['email'] as String),
                   subtitle: Text(
-                    '${a['email']}\n'
+                    '${a['email']}${a['phone'] != null ? ' · ${a['phone']}' : ''}\n'
                     'Account: ${a['activation_status']}',
                   ),
                   isThreeLine: true,

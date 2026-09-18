@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 
+import '../../../../core/validation/validators.dart';
 import '../../data/trusted_contact_repository.dart';
 import '../../domain/student_details.dart';
 
 /// Bottom sheet form used both during the registration wizard and from
-/// the Trusted Contacts screen later, to add one contact at a time
-/// (scope.md §5: "Added by email ... or phone").
+/// the Trusted Contacts screen later, to add one contact at a time.
+/// Phone is mandatory — it's the reliable way to reach a contact who
+/// doesn't have the app (SMS fallback) and to check whether they already
+/// have a SafeStep account (find_student_by_contact checks phone and
+/// email). Email stays optional, on top of phone.
 class AddContactSheet extends StatefulWidget {
   const AddContactSheet({
     super.key,
@@ -86,10 +90,6 @@ class _AddContactSheetState extends State<AddContactSheet> {
 
     final email = _emailController.text.trim();
     final phone = _phoneController.text.trim();
-    if (email.isEmpty && phone.isEmpty) {
-      setState(() => _errorMessage = 'Add an email or a phone number');
-      return;
-    }
 
     setState(() {
       _isSubmitting = true;
@@ -187,15 +187,18 @@ class _AddContactSheetState extends State<AddContactSheet> {
                 labelText: 'Email (optional)',
                 hintText: 'Checked against SafeStep accounts',
               ),
+              validator: (value) =>
+                  (value == null || value.trim().isEmpty) ? null : emailValidator(value),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _phoneController,
               keyboardType: TextInputType.phone,
               decoration: const InputDecoration(
-                labelText: 'Phone (optional)',
-                hintText: 'Used if they don\'t have the app',
+                labelText: 'Cellphone Number',
+                hintText: 'Used for SMS fallback, and to check for an existing account',
               ),
+              validator: (value) => phoneValidator(value, required: true),
             ),
             if (_errorMessage != null) ...[
               const SizedBox(height: 12),

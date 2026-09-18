@@ -1,5 +1,40 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/widgets/listen_button.dart';
+
+const _fullNoticeText =
+    'This is a hackathon prototype. Every person, alert, and report in it '
+    'is simulated demo data — no real students, no real emergencies. In an '
+    'actual emergency, always contact official services directly. '
+    'What we collect: your registration details, trusted contacts you add, '
+    'your live or last-known location during an active alert or Safe Walks '
+    'journey, any incident or Safe Ride reports you submit, and optional '
+    'medical, vehicle, and mobility information. '
+    'Three tiers of visibility. Restricted, emergency-only: your address, '
+    'medical info, and vehicle or mobility details — never visible to '
+    'admin, and visible to a responder only during your active alert. '
+    'Aggregate-only: your date of birth, gender, and faculty or year, used '
+    'only for anonymous pattern reporting. Operational: your name, campus, '
+    'and alert or report history, visible to responders handling your '
+    'alert and to admin for safety planning. '
+    'Trusted contacts are notified with your location only when you send '
+    'an alert or invite them to a Safe Walks journey, and can never remove '
+    'themselves. '
+    'Anonymous incident reports never attach your identity for admin or '
+    'staff to see. '
+    'In walking groups, fellow members see your name only, never your '
+    'contact details or restricted information. '
+    'Safe Ride reports are attributed to your account internally, but '
+    'never shown publicly with your name attached. '
+    'Alert and location data is kept only as long as needed for follow-up. '
+    'You can edit or remove your medical, vehicle, and mobility info at '
+    'any time, and permanently delete your account and all associated '
+    'data from Settings — this cannot be undone. '
+    'A real deployment of SafeStep would require university approval, '
+    'formal security testing, legal review, and a written data-sharing '
+    'agreement — none of that exists here; this prototype is a design '
+    'concept, not a certified safety system.';
+
 /// scope.md §8 "Privacy & POPIA": tiered data visibility (§5) explained
 /// plainly, not just in the abstract — who specifically sees each kind
 /// of information, and exactly when.
@@ -11,7 +46,10 @@ class PrivacyNoticeScreen extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Privacy Notice')),
+      appBar: AppBar(
+        title: const Text('Privacy Notice'),
+        actions: const [ListenButton(text: _fullNoticeText)],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [

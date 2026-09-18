@@ -105,119 +105,105 @@ class _ActiveSosScreenState extends State<ActiveSosScreen>
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return PopScope(
       canPop: false,
       child: Scaffold(
-        body: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFFDC2626), Color(0xFF991B1B)],
-            ),
-          ),
-          child: SafeArea(
-            child: Column(
-              children: [
-                const SizedBox(height: 24),
-                const Text(
-                  'Help request sent',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                  ),
+        backgroundColor: colorScheme.surface,
+        body: SafeArea(
+          child: Column(
+            children: [
+              const SizedBox(height: 24),
+              Text(
+                'Help request sent',
+                style: TextStyle(
+                  color: colorScheme.onSurface,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
                 ),
-                const SizedBox(height: 28),
-                _buildPulse(),
-                const SizedBox(height: 24),
-                const Text(
-                  'Stay where you are if it is safe to do so',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                  ),
+              ),
+              const SizedBox(height: 28),
+              _buildPulse(),
+              const SizedBox(height: 24),
+              Text(
+                'Stay where you are if it is safe to do so',
+                style: TextStyle(
+                  color: colorScheme.onSurface,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Elapsed time: $_elapsedLabel',
-                  style: const TextStyle(color: Colors.white70, fontSize: 11.5),
-                ),
-                const SizedBox(height: 20),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 22),
-                  child: FutureBuilder<Map<String, dynamic>>(
-                    future: _alertFuture,
-                    builder: (context, snapshot) {
-                      final alert = snapshot.data;
-                      final hasLocation =
-                          alert != null && alert['lat'] != null;
-                      return Column(
-                        children: [
-                          _SosInfoRow(
-                            icon: Icons.location_on_outlined,
-                            title: hasLocation
-                                ? 'Location shared'
-                                : 'Location unavailable',
-                            subtitle: hasLocation
-                                ? 'Your GPS coordinates were sent with this alert'
-                                : 'Enable location permission for next time',
-                          ),
-                          const SizedBox(height: 9),
-                          const _SosInfoRow(
-                            icon: Icons.people_outline,
-                            title: 'Trusted contacts notified',
-                            subtitle: 'Recorded — this prototype doesn\'t send real SMS/push',
-                          ),
-                          const SizedBox(height: 9),
-                          const _SosInfoRow(
-                            icon: Icons.verified_outlined,
-                            title: 'Responders notified',
-                            subtitle: 'Sent to every responder covering your area',
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-                const Spacer(),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(22, 0, 22, 28),
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white.withValues(alpha: 0.18),
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                          ),
-                          onPressed: _isBusy ? null : _handleFalseAlarm,
-                          child: const Text('This was accidental — false alarm'),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Elapsed time: $_elapsedLabel',
+                style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 11.5),
+              ),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 22),
+                child: FutureBuilder<Map<String, dynamic>>(
+                  future: _alertFuture,
+                  builder: (context, snapshot) {
+                    final alert = snapshot.data;
+                    final hasLocation =
+                        alert != null && alert['lat'] != null;
+                    return Column(
+                      children: [
+                        _SosInfoRow(
+                          icon: Icons.location_on_outlined,
+                          title: hasLocation
+                              ? 'Location shared'
+                              : 'Location unavailable',
+                          subtitle: hasLocation
+                              ? 'Your GPS coordinates were sent with this alert'
+                              : 'Enable location permission for next time',
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: AppColors.alert,
-                            elevation: 0,
-                          ),
-                          onPressed: _isBusy ? null : _handleEndAlert,
-                          child: const Text("I'm safe now — end alert"),
+                        const SizedBox(height: 9),
+                        const _SosInfoRow(
+                          icon: Icons.people_outline,
+                          title: 'Trusted contacts notified',
+                          subtitle: 'Recorded — this prototype doesn\'t send real SMS/push',
                         ),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(height: 9),
+                        const _SosInfoRow(
+                          icon: Icons.verified_outlined,
+                          title: 'Responders notified',
+                          subtitle: 'Sent to every responder covering your area',
+                        ),
+                      ],
+                    );
+                  },
                 ),
-              ],
-            ),
+              ),
+              const Spacer(),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(22, 0, 22, 28),
+                child: Column(
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: _isBusy ? null : _handleFalseAlarm,
+                        child: const Text('This was accidental — false alarm'),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.alert,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                        ),
+                        onPressed: _isBusy ? null : _handleEndAlert,
+                        child: const Text("I'm safe now — end alert"),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -237,12 +223,12 @@ class _ActiveSosScreenState extends State<ActiveSosScreen>
             width: 90,
             height: 90,
             decoration: const BoxDecoration(
-              color: Colors.white,
+              color: AppColors.alert,
               shape: BoxShape.circle,
             ),
             child: const Icon(
               Icons.campaign_outlined,
-              color: AppColors.alert,
+              color: Colors.white,
               size: 42,
             ),
           ),
@@ -267,7 +253,7 @@ class _ActiveSosScreenState extends State<ActiveSosScreen>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.4),
+                    color: AppColors.alert.withValues(alpha: 0.4),
                     width: 2,
                   ),
                 ),
@@ -293,16 +279,17 @@ class _SosInfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
+        color: colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         children: [
-          Icon(icon, color: Colors.white, size: 18),
+          Icon(icon, color: colorScheme.onSurface, size: 18),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -310,8 +297,8 @@ class _SosInfoRow extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: colorScheme.onSurface,
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
                   ),
@@ -319,7 +306,7 @@ class _SosInfoRow extends StatelessWidget {
                 Text(
                   subtitle,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.75),
+                    color: colorScheme.onSurfaceVariant,
                     fontSize: 11,
                   ),
                 ),

@@ -210,10 +210,15 @@ class AdminRepository {
     });
   }
 
-  Future<void> inviteAdmin({required String email, required String fullName}) {
+  Future<void> inviteAdmin({
+    required String email,
+    required String fullName,
+    required String phone,
+  }) {
     return _client.from('admins').insert({
       'email': email,
       'full_name': fullName,
+      'phone': phone,
       'activation_status': 'invited',
       'is_active': true,
     });
@@ -383,5 +388,32 @@ class AdminRepository {
         .from('emergency_contacts')
         .delete()
         .eq('contact_id', contactId);
+  }
+
+  // ---- Safe Ride reports -------------------------------------------
+  //
+  // Student-submitted vehicle offense reports start as pending_review
+  // and only affect what other students see once approved here —
+  // feedback: "admin should review the report ... they are not to be
+  // posted [straight from the reporter]".
+
+  Future<List<Map<String, dynamic>>> fetchPendingSafeRideReports() async {
+    final rows = await _client
+        .from('vehicle_offenses')
+        .select('*, vehicle_records(plate_number, vehicle_make, vehicle_model)')
+        .eq('source', 'student_report')
+        .eq('status', 'pending_review')
+        .order('created_at');
+    return List<Map<String, dynamic>>.from(rows);
+  }
+
+  Future<void> resolveSafeRideReport(String offenseId, {required bool approve}) {
+    return _client
+        .from('vehicle_offenses')
+        .update({
+          'status': approve ? 'approved' : 'rejected',
+          'reviewed_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('offense_id', offenseId);
   }
 }

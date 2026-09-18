@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/accessibility/font_scale_controller.dart';
+import '../../../core/accessibility/tts_service.dart';
 import '../../../core/auth/biometric_lock_prefs.dart';
 import '../../../core/auth/biometric_service.dart';
+import '../../../core/l10n/app_locale_controller.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../../../core/theme/theme_controller.dart';
 import '../../auth/presentation/welcome_screen.dart';
@@ -47,6 +50,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await BiometricLockPrefs.setEnabled(value);
     if (!mounted) return;
     setState(() => _biometricEnabled = value);
+  }
+
+  Future<void> _pickLanguage(BuildContext context, Locale? current) async {
+    final picked = await showDialog<Locale>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Choose a language'),
+        children: supportedLocales.map((locale) {
+          final selected = (current?.languageCode ?? 'en') == locale.languageCode;
+          return SimpleDialogOption(
+            onPressed: () => Navigator.of(context).pop(locale),
+            child: Row(
+              children: [
+                if (selected)
+                  const Icon(Icons.check, size: 18)
+                else
+                  const SizedBox(width: 18),
+                const SizedBox(width: 10),
+                Text(localeNames[locale.languageCode]!),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+    if (picked != null) await AppLocaleController.instance.setLocale(picked);
   }
 
   Future<void> _confirmDelete() async {
@@ -141,6 +170,65 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 selected: {mode},
                 onSelectionChanged: (selection) =>
                     ThemeController.instance.setMode(selection.first),
+              );
+            },
+          ),
+          const SizedBox(height: 32),
+          Text('Accessibility', style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 8),
+          ValueListenableBuilder<double>(
+            valueListenable: FontScaleController.instance,
+            builder: (context, scale, _) {
+              final currentLabel = FontScaleController.steps.entries
+                  .firstWhere(
+                    (e) => e.value == scale,
+                    orElse: () => const MapEntry('Default', 1.0),
+                  )
+                  .key;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Text size'),
+                  const SizedBox(height: 8),
+                  SegmentedButton<String>(
+                    segments: FontScaleController.steps.keys
+                        .map((label) => ButtonSegment(value: label, label: Text(label)))
+                        .toList(),
+                    selected: {currentLabel},
+                    onSelectionChanged: (selection) => FontScaleController.instance
+                        .setScale(FontScaleController.steps[selection.first]!),
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          ValueListenableBuilder<bool>(
+            valueListenable: TtsService.instance,
+            builder: (context, enabled, _) {
+              return SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                secondary: const Icon(Icons.volume_up_outlined),
+                title: const Text('Text-to-speech'),
+                subtitle: const Text(
+                  'Adds a "Listen" button to read key screens aloud',
+                ),
+                value: enabled,
+                onChanged: TtsService.instance.setEnabled,
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          ValueListenableBuilder<Locale?>(
+            valueListenable: AppLocaleController.instance,
+            builder: (context, locale, _) {
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.language_outlined),
+                title: const Text('Language'),
+                subtitle: Text(localeNames[locale?.languageCode] ?? 'English'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _pickLanguage(context, locale),
               );
             },
           ),

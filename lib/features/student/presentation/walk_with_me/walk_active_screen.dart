@@ -360,6 +360,7 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
                   onPressed: _isBusy ? null : _arrivedSafely,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   ),
                   icon: const Icon(Icons.check_circle_outline),
                   label: const Text("I've Arrived Safely"),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../admin/presentation/admin_mobile_notice_screen.dart';
+import '../../admin/presentation/admin_home_shell.dart';
 import '../../responder/presentation/responder_home_shell.dart';
 import '../../student/presentation/student_home_shell.dart';
 import '../data/auth_repository.dart';
@@ -65,7 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
         case AppRole.responder:
           _goTo(const ResponderHomeShell());
         case AppRole.admin:
-          _goTo(const AdminMobileNoticeScreen());
+          _goTo(const AdminHomeShell());
         case null:
           _goTo(
             StudentWizardScreen(

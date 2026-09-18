@@ -7,21 +7,18 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/supabase/supabase_service.dart';
 import 'qr_scan_screen.dart';
 
-const _riskColors = {
-  'high': AppColors.alert,
-  'moderate': AppColors.caution,
-  'safe': AppColors.safe,
-};
-
 /// Real center of the four NMU Summerstrand campuses — used as the
 /// default map view before any zone data loads.
 const _summerstrandCenter = LatLng(-33.9836, 25.6649);
 
-/// One continuous campus + Summerstrand map, zones colour-coded by risk
-/// (scope.md §5). Uses OpenStreetMap tiles via flutter_map rather than
-/// Google Maps — the project's Google Cloud key(s) can't render map
-/// tiles without billing enabled, and OSM needs no API key or billing at
-/// all, so it's usable immediately.
+/// One continuous campus + Summerstrand map. Only high-risk ("danger")
+/// zones are drawn, as a red radius circle rather than a colour-coded pin
+/// for every risk level — safe/moderate zones add visual noise without
+/// changing what a student should actually do differently. Uses
+/// OpenStreetMap tiles via flutter_map rather than Google Maps — the
+/// project's Google Cloud key(s) can't render map tiles without billing
+/// enabled, and OSM needs no API key or billing at all, so it's usable
+/// immediately.
 class MapTab extends StatefulWidget {
   const MapTab({super.key});
 
@@ -87,7 +84,10 @@ class _MapTabState extends State<MapTab> {
             return const Center(child: CircularProgressIndicator());
           }
           final zones = snapshot.data!
-              .where((z) => z['lat'] != null && z['lng'] != null)
+              .where((z) =>
+                  z['lat'] != null &&
+                  z['lng'] != null &&
+                  z['risk_status'] == 'high')
               .toList();
 
           return Stack(
@@ -115,6 +115,22 @@ class _MapTabState extends State<MapTab> {
                     urlTemplate:
                         'https://server.arcgisonline.com/ArcGIS/rest/services/'
                         'World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+                  ),
+                  CircleLayer(
+                    circles: [
+                      for (final zone in zones)
+                        CircleMarker(
+                          point: LatLng(
+                            (zone['lat'] as num).toDouble(),
+                            (zone['lng'] as num).toDouble(),
+                          ),
+                          radius: 120,
+                          useRadiusInMeter: true,
+                          color: AppColors.alert.withValues(alpha: 0.22),
+                          borderStrokeWidth: 2,
+                          borderColor: AppColors.alert,
+                        ),
+                    ],
                   ),
                   MarkerLayer(
                     markers: [
@@ -144,12 +160,11 @@ class _MapTabState extends State<MapTab> {
                           height: 40,
                           child: GestureDetector(
                             onTap: () => setState(() => _selectedZone = zone),
-                            child: Icon(
-                              Icons.location_on,
-                              size: 38,
-                              color: _riskColors[zone['risk_status'] as String?] ??
-                                  colorScheme.outline,
-                              shadows: const [
+                            child: const Icon(
+                              Icons.warning_rounded,
+                              size: 30,
+                              color: AppColors.alert,
+                              shadows: [
                                 Shadow(color: Colors.black45, blurRadius: 4),
                               ],
                             ),
@@ -173,27 +188,22 @@ class _MapTabState extends State<MapTab> {
                     ],
                   ),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: _riskColors.entries.map((entry) {
-                      return Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: entry.value,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            entry.key[0].toUpperCase() + entry.key.substring(1),
-                            style: Theme.of(context).textTheme.labelSmall,
-                          ),
-                        ],
-                      );
-                    }).toList(),
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: AppColors.alert,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Danger zone',
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -211,15 +221,7 @@ class _MapTabState extends State<MapTab> {
                       padding: const EdgeInsets.all(16),
                       child: Row(
                         children: [
-                          Container(
-                            width: 12,
-                            height: 12,
-                            decoration: BoxDecoration(
-                              color: _riskColors[_selectedZone!['risk_status'] as String?] ??
-                                  colorScheme.outline,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
+                          const Icon(Icons.warning_rounded, color: AppColors.alert, size: 20),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(

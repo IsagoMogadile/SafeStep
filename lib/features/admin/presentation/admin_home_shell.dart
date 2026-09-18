@@ -12,6 +12,7 @@ import 'overview_tab.dart';
 import 'people_tab.dart';
 import 'reports_tab.dart';
 import 'resources_tab.dart';
+import 'safe_ride_reports_tab.dart';
 import 'students_tab.dart';
 import 'zones_tab.dart';
 
@@ -23,6 +24,7 @@ const _sections = [
   (icon: Icons.campaign_outlined, label: 'Safety Broadcasts'),
   (icon: Icons.menu_book_outlined, label: 'Resources'),
   (icon: Icons.report_outlined, label: 'Incident Reports'),
+  (icon: Icons.directions_car_outlined, label: 'Safe Ride Reports'),
   (icon: Icons.groups_outlined, label: 'Walking Groups'),
   (icon: Icons.call_outlined, label: 'Emergency Contacts'),
   (icon: Icons.school_outlined, label: 'Students'),
@@ -145,6 +147,7 @@ class _AdminHomeShellState extends State<AdminHomeShell> {
                     BroadcastsTab(adminId: adminId),
                     const ResourcesTab(),
                     const ReportsTab(),
+                    const SafeRideReportsTab(),
                     const GroupsTab(),
                     const EmergencyContactsTab(),
                     const StudentsTab(),

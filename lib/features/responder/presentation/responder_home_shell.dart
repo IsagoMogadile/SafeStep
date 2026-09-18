@@ -4,6 +4,7 @@ import '../../../core/supabase/supabase_service.dart';
 import '../data/responder_repository.dart';
 import 'alert_feed_tab.dart';
 import 'history_tab.dart';
+import 'responder_map_tab.dart';
 import 'responder_profile_tab.dart';
 
 /// Responder post-login shell (scope.md §6): 3 bottom-nav tabs mirroring
@@ -58,15 +59,22 @@ class _ResponderHomeShellState extends State<ResponderHomeShell> {
         final org = self['organization'] == 'nmu_campus_security'
             ? 'NMU Campus Security'
             : 'Security Company';
+        final zone = self['zones'] as Map<String, dynamic>?;
 
         return Scaffold(
           appBar: AppBar(
-            title: Text(['Active Alerts', 'History', 'Profile'][_tabIndex]),
+            title: Text(['Active Alerts', 'Map', 'History', 'Profile'][_tabIndex]),
           ),
           body: IndexedStack(
             index: _tabIndex,
             children: [
               AlertFeedTab(responderId: responderId),
+              ResponderMapTab(
+                responderId: responderId,
+                zoneName: zone?['name'] as String?,
+                zoneLat: (zone?['lat'] as num?)?.toDouble(),
+                zoneLng: (zone?['lng'] as num?)?.toDouble(),
+              ),
               HistoryTab(responderId: responderId),
               ResponderProfileTab(fullName: fullName, org: org),
             ],
@@ -79,6 +87,11 @@ class _ResponderHomeShellState extends State<ResponderHomeShell> {
                 icon: Icon(Icons.campaign_outlined),
                 selectedIcon: Icon(Icons.campaign),
                 label: 'Alerts',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.map_outlined),
+                selectedIcon: Icon(Icons.map),
+                label: 'Map',
               ),
               NavigationDestination(
                 icon: Icon(Icons.history_outlined),

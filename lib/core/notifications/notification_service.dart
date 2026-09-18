@@ -20,6 +20,9 @@ class NotificationService {
   static const actionExtend = 'extend';
   static const actionArrived = 'arrived';
 
+  static const _alertStatusChannelId = 'alert_status';
+  int _alertStatusNotificationId = 2001;
+
   final _plugin = FlutterLocalNotificationsPlugin();
   void Function(String actionId)? onAction;
   bool _initialized = false;
@@ -83,5 +86,29 @@ class NotificationService {
 
   Future<void> cancelJourneyNotification() async {
     await _plugin.cancel(_journeyNotificationId);
+  }
+
+  /// A one-shot notification for a responder's status update on a
+  /// specific student's own alert (Acknowledged/Dispatched/Resolved).
+  /// Each call uses a fresh notification id so multiple updates stack
+  /// rather than overwrite one another, unlike the ongoing journey
+  /// notification above.
+  Future<void> showAlertStatusNotification({
+    required String title,
+    required String body,
+  }) async {
+    const details = AndroidNotificationDetails(
+      _alertStatusChannelId,
+      'Alert updates',
+      channelDescription: "Updates from a responder on your own SafeStep alert",
+      importance: Importance.high,
+      priority: Priority.high,
+    );
+    await _plugin.show(
+      _alertStatusNotificationId++,
+      title,
+      body,
+      const NotificationDetails(android: details),
+    );
   }
 }

@@ -4,7 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/auth/biometric_lock_prefs.dart';
 import '../../admin/presentation/admin_home_shell.dart';
-import '../../admin/presentation/admin_mobile_notice_screen.dart';
 import '../../responder/presentation/responder_home_shell.dart';
 import '../../student/presentation/student_home_shell.dart';
 import '../data/auth_repository.dart';
@@ -124,11 +123,7 @@ class _RoleResolverState extends State<_RoleResolver> {
           case AppRole.responder:
             return const ResponderHomeShell();
           case AppRole.admin:
-            // Admin is web-only (scope.md §2) — the same login screen and
-            // role lookup apply everywhere, but an admin who opens the
-            // mobile build gets a plain notice instead of a broken
-            // desktop-shaped dashboard.
-            return kIsWeb ? const AdminHomeShell() : const AdminMobileNoticeScreen();
+            return const AdminHomeShell();
           case null:
             // Signed up but never finished the student details wizard
             // (e.g. app was closed mid-flow) — resume it.

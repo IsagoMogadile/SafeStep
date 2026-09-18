@@ -6,7 +6,9 @@ import 'package:supabase_flutter/supabase_flutter.dart' show CountOption;
 
 import '../../../core/supabase/supabase_service.dart';
 import '../../auth/data/auth_repository.dart';
+import '../data/alert_status_poller.dart';
 import '../data/alerts_seen_prefs.dart';
+import '../data/safe_ride_report_poller.dart';
 import '../data/walk_session_repository.dart';
 import 'alerts_screen.dart';
 import 'home_tab.dart';
@@ -35,6 +37,8 @@ class _StudentHomeShellState extends State<StudentHomeShell> {
   late Future<int> _pendingInvitesFuture;
   StreamSubscription<Uri?>? _widgetClickSub;
   bool _openedQuickSos = false;
+  AlertStatusPoller? _alertStatusPoller;
+  SafeRideReportPoller? _safeRideReportPoller;
 
   @override
   void initState() {
@@ -44,11 +48,18 @@ class _StudentHomeShellState extends State<StudentHomeShell> {
     _pendingInvitesFuture = _fetchPendingInviteCount();
     HomeWidget.initiallyLaunchedFromHomeWidget().then(_handleWidgetUri);
     _widgetClickSub = HomeWidget.widgetClicked.listen(_handleWidgetUri);
+    final studentId = SupabaseService.client.auth.currentUser?.id;
+    if (studentId != null) {
+      _alertStatusPoller = AlertStatusPoller(studentId: studentId)..start();
+      _safeRideReportPoller = SafeRideReportPoller(studentId: studentId)..start();
+    }
   }
 
   @override
   void dispose() {
     _widgetClickSub?.cancel();
+    _alertStatusPoller?.stop();
+    _safeRideReportPoller?.stop();
     super.dispose();
   }
 

@@ -1,10 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/supabase/supabase_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/safe_ride_repository.dart';
 import '../domain/safe_ride_risk.dart';
 import 'call_security_screen.dart';
+
+/// Picks the recognized text line that looks most like a number plate:
+/// letters and digits only, 5-8 characters, containing at least one of
+/// each — good enough for a demo scan, not a certified ANPR system.
+String? _bestPlateGuess(RecognizedText result) {
+  final candidates = <String>[];
+  for (final block in result.blocks) {
+    for (final line in block.lines) {
+      final cleaned = line.text.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+      if (cleaned.length < 5 || cleaned.length > 8) continue;
+      final hasLetter = RegExp(r'[A-Z]').hasMatch(cleaned);
+      final hasDigit = RegExp(r'[0-9]').hasMatch(cleaned);
+      if (hasLetter && hasDigit) candidates.add(cleaned);
+    }
+  }
+  if (candidates.isEmpty) return null;
+  candidates.sort((a, b) => b.length.compareTo(a.length));
+  return candidates.first;
+}
 
 /// "Safe Ride": check a lift/taxi's number plate against on-file offense
 /// records before getting in, and report a vehicle immediately if
@@ -19,7 +40,9 @@ class SafeRideScreen extends StatefulWidget {
 class _SafeRideScreenState extends State<SafeRideScreen> {
   final _repository = SafeRideRepository();
   final _plateController = TextEditingController();
+  final _textRecognizer = TextRecognizer();
   bool _isChecking = false;
+  bool _isScanning = false;
   bool _hasChecked = false;
   Map<String, dynamic>? _record;
   String? _errorMessage;
@@ -27,7 +50,39 @@ class _SafeRideScreenState extends State<SafeRideScreen> {
   @override
   void dispose() {
     _plateController.dispose();
+    _textRecognizer.close();
     super.dispose();
+  }
+
+  Future<void> _scanPlate() async {
+    final photo = await ImagePicker().pickImage(
+      source: ImageSource.camera,
+      maxWidth: 1600,
+    );
+    if (photo == null || !mounted) return;
+
+    setState(() => _isScanning = true);
+    try {
+      final result = await _textRecognizer.processImage(
+        InputImage.fromFilePath(photo.path),
+      );
+      final guess = _bestPlateGuess(result);
+      if (!mounted) return;
+      if (guess != null) {
+        setState(() => _plateController.text = guess);
+        _checkPlate();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Couldn't read a plate from that photo — try again, or type it in.",
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isScanning = false);
+    }
   }
 
   Future<void> _checkPlate() async {
@@ -75,7 +130,12 @@ class _SafeRideScreenState extends State<SafeRideScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final offenses = _record == null
         ? const <Map<String, dynamic>>[]
-        : List<Map<String, dynamic>>.from(_record!['vehicle_offenses'] as List);
+        : List<Map<String, dynamic>>.from(_record!['vehicle_offenses'] as List)
+            // A student report only affects what other students see once
+            // an admin has reviewed it — never posted straight from the
+            // reporter (see _ReportVehicleSheet / SafeRideRepository).
+            .where((o) => o['status'] == 'approved')
+            .toList();
     final risk = _record == null ? null : classifySafeRideRisk(offenses);
 
     return Scaffold(
@@ -104,6 +164,18 @@ class _SafeRideScreenState extends State<SafeRideScreen> {
                   prefixIcon: Icon(Icons.directions_car_outlined),
                 ),
                 onSubmitted: (_) => _checkPlate(),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: _isScanning ? null : _scanPlate,
+                icon: _isScanning
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2.2),
+                      )
+                    : const Icon(Icons.camera_alt_outlined),
+                label: Text(_isScanning ? 'Reading plate…' : 'Scan plate with camera'),
               ),
               const SizedBox(height: 12),
               ElevatedButton(
@@ -175,8 +247,11 @@ class _SafeRideScreenState extends State<SafeRideScreen> {
                         Text(risk.feedback),
                         const SizedBox(height: 12),
                         Text(
-                          '${_record!['driver_name']} · '
-                          '${[_record!['vehicle_colour'], _record!['vehicle_make'], _record!['vehicle_model']].where((v) => v != null).join(' ')}',
+                          [
+                            _record!['vehicle_colour'],
+                            _record!['vehicle_make'],
+                            _record!['vehicle_model'],
+                          ].where((v) => v != null).join(' '),
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         if (risk == SafeRideRisk.danger) ...[
@@ -196,34 +271,6 @@ class _SafeRideScreenState extends State<SafeRideScreen> {
                       ],
                     ),
                   ),
-                  if (offenses.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      'On file (${offenses.length})',
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                    const SizedBox(height: 8),
-                    ...offenses.map(
-                      (o) => Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        elevation: 0,
-                        color: colorScheme.surfaceContainerHigh,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: ListTile(
-                          dense: true,
-                          title: Text(o['offense_type'] as String? ?? ''),
-                          trailing: Chip(
-                            label: Text(severityLabel(o['severity'] as String)),
-                            labelStyle: const TextStyle(fontSize: 10),
-                            visualDensity: VisualDensity.compact,
-                            backgroundColor: colorScheme.surfaceContainerHighest,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
                 ],
               ],
               const SizedBox(height: 20),
