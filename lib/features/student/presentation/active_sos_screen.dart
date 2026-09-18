@@ -184,7 +184,7 @@ class _ActiveSosScreenState extends State<ActiveSosScreen>
                       width: double.infinity,
                       child: OutlinedButton(
                         onPressed: _isBusy ? null : _handleFalseAlarm,
-                        child: const Text('This was accidental — false alarm'),
+                        child: const Text('This was accidental false alarm'),
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -197,7 +197,7 @@ class _ActiveSosScreenState extends State<ActiveSosScreen>
                           elevation: 0,
                         ),
                         onPressed: _isBusy ? null : _handleEndAlert,
-                        child: const Text("I'm safe now — end alert"),
+                        child: const Text("I'm safe now end alert"),
                       ),
                     ),
                   ],
