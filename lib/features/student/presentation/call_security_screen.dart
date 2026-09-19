@@ -4,13 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../data/emergency_contacts_cache.dart';
 
-/// scope.md §5 "Offline fallback": these are real phone numbers dialled
-/// via the OS phone app, so they still work with zero data connection —
-/// but the numbers themselves come from Supabase, so this screen is also
-/// this app's designated *offline destination* for SOS (home_tab.dart
-/// routes here instead of the real alert flow when there's no
-/// connection). That only actually works with zero data if the list is
-/// cached locally ahead of time, which is what this does.
+
 class CallSecurityScreen extends StatefulWidget {
   const CallSecurityScreen({super.key, this.offlineNotice = false});
 

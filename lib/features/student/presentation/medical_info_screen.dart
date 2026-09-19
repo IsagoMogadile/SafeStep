@@ -4,7 +4,7 @@ import '../../../core/supabase/supabase_service.dart';
 import '../../auth/domain/student_details.dart';
 import 'edit_medical_info_screen.dart';
 
-/// scope.md §5 "Medical info card": optional, restricted-tier — only
+/// scope.md  "Medical info card": optional, restricted-tier — only
 /// visible to a responder while the student has an active alert.
 ///
 /// View-only by design, so the student can't accidentally change sensitive

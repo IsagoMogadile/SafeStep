@@ -105,7 +105,15 @@ class _AdminHomeShellState extends State<AdminHomeShell> {
 
         return Scaffold(
           appBar: AppBar(
-            title: Text(_sections[_index].label),
+            leading: _index == 0
+                ? null
+                : IconButton(
+                    onPressed: () => setState(() => _index = 0),
+                    icon: const Icon(Icons.arrow_back),
+                    tooltip: 'Back to Dashboard',
+                  ),
+            automaticallyImplyLeading: false,
+            title: Text(_index == 0 ? 'Dashboard' : _sections[_index].label),
             actions: [
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -119,44 +127,21 @@ class _AdminHomeShellState extends State<AdminHomeShell> {
               const SizedBox(width: 8),
             ],
           ),
-          body: Row(
+          body: IndexedStack(
+            index: _index,
             children: [
-              NavigationRail(
-                selectedIndex: _index,
-                onDestinationSelected: (i) => setState(() => _index = i),
-                labelType: NavigationRailLabelType.all,
-                destinations: [
-                  for (final section in _sections)
-                    NavigationRailDestination(
-                      icon: Icon(section.icon),
-                      label: Text(
-                        section.label,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 11),
-                      ),
-                    ),
-                ],
-              ),
-              const VerticalDivider(width: 1),
-              Expanded(
-                child: IndexedStack(
-                  index: _index,
-                  children: [
-                    OverviewTab(onNavigateToSection: (i) => setState(() => _index = i)),
-                    const AlertsTab(),
-                    const PeopleTab(),
-                    const ZonesTab(),
-                    BroadcastsTab(adminId: adminId),
-                    const ResourcesTab(),
-                    const ReportsTab(),
-                    const SafeRideReportsTab(),
-                    const GroupsTab(),
-                    const EmergencyContactsTab(),
-                    const StudentsTab(),
-                    const AuditLogsTab(),
-                  ],
-                ),
-              ),
+              OverviewTab(onNavigateToSection: (i) => setState(() => _index = i)),
+              const AlertsTab(),
+              const PeopleTab(),
+              const ZonesTab(),
+              BroadcastsTab(adminId: adminId),
+              const ResourcesTab(),
+              const ReportsTab(),
+              const SafeRideReportsTab(),
+              const GroupsTab(),
+              const EmergencyContactsTab(),
+              const StudentsTab(),
+              const AuditLogsTab(),
             ],
           ),
         );

@@ -7,14 +7,15 @@ class ShuttleLibraryScreen extends StatelessWidget {
   const ShuttleLibraryScreen({super.key});
 
   static const _shuttleRoutes = [
-    ('South ↔ North Campus', 'Every 20 min · 07:00–21:00'),
+    ('South ↔ Missionvale Campus', 'Every 20 min · 07:00–21:00'),
     ('South ↔ 2nd Avenue Campus', 'Every 30 min · 07:00–20:00'),
-    ('South ↔ Ocean Sciences Campus', 'Every 45 min · 07:30–17:30'),
+    ('South ↔ Bird Street Campus', 'Every 45 min · 07:30–17:30'),
   ];
 
   static const _libraryHours = [
-    ('South Campus Library', 'Mon–Thu 08:00–24:00 · Fri 08:00–18:00'),
+    ('South Campus Library', 'Mon–Thu 08:00–10:00 · Fri 08:00–20:00'),
     ('2nd Avenue Library', 'Mon–Fri 08:00–20:00'),
+     ('Missionvale Library', 'Mon–Fri 08:00–20:00'),
   ];
 
   @override
