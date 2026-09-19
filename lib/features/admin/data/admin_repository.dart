@@ -14,6 +14,44 @@ class AdminRepository {
 
   final SupabaseClient _client;
 
+  // ---- audit trail -----------------------------------------------------
+  //
+  // Every mutating method below calls this once its write succeeds, so the
+  // Audit Logs tab has a complete record of admin actions. Re-reads the
+  // acting admin's identity from `admins` (rather than threading it through
+  // every call site) so instrumenting a method never requires touching the
+  // widgets that call it.
+
+  Future<void> _logAction({
+    required String action,
+    String? targetType,
+    String? targetId,
+    String? details,
+  }) async {
+    final admin = await _client
+        .from('admins')
+        .select('admin_id, full_name')
+        .eq('user_id', _client.auth.currentUser!.id)
+        .maybeSingle();
+    await _client.from('audit_logs').insert({
+      'admin_id': admin?['admin_id'],
+      'admin_name': admin?['full_name'] as String? ?? 'Unknown admin',
+      'action': action,
+      'target_type': targetType,
+      'target_id': targetId,
+      'details': details,
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> fetchAuditLogs({int limit = 300}) async {
+    final rows = await _client
+        .from('audit_logs')
+        .select('*')
+        .order('created_at', ascending: false)
+        .limit(limit);
+    return List<Map<String, dynamic>>.from(rows);
+  }
+
   // ---- self / overview ----------------------------------------------
 
   Future<Map<String, dynamic>?> fetchSelf(String userId) {
@@ -98,12 +136,18 @@ class AdminRepository {
     };
   }
 
-  Future<void> dispatchAlert(String alertId) {
-    return _client.from('alerts').update({'status': 'dispatched'}).eq('alert_id', alertId);
+  Future<void> dispatchAlert(String alertId) async {
+    await _client.from('alerts').update({'status': 'dispatched'}).eq('alert_id', alertId);
+    await _logAction(
+      action: 'alert.dispatch',
+      targetType: 'alert',
+      targetId: alertId,
+      details: 'Dispatched alert',
+    );
   }
 
-  Future<void> resolveAlert(String alertId, {String? notes}) {
-    return _client
+  Future<void> resolveAlert(String alertId, {String? notes}) async {
+    await _client
         .from('alerts')
         .update({
           'status': 'resolved',
@@ -111,13 +155,26 @@ class AdminRepository {
           'resolved_at': DateTime.now().toUtc().toIso8601String(),
         })
         .eq('alert_id', alertId);
+    await _logAction(
+      action: 'alert.resolve',
+      targetType: 'alert',
+      targetId: alertId,
+      details: 'Resolved alert'
+          '${notes != null && notes.isNotEmpty ? ' with notes' : ''}',
+    );
   }
 
-  Future<void> flagAlertFalseAlarm(String alertId) {
-    return _client
+  Future<void> flagAlertFalseAlarm(String alertId) async {
+    await _client
         .from('alerts')
         .update({'status': 'false_alarm_verify'})
         .eq('alert_id', alertId);
+    await _logAction(
+      action: 'alert.false_alarm_flag',
+      targetType: 'alert',
+      targetId: alertId,
+      details: 'Flagged alert as a suspected false alarm',
+    );
   }
 
   // ---- students (name/email/campus only — scope.md §5: DOB, gender,
@@ -157,8 +214,8 @@ class AdminRepository {
     required String coveredBy,
     double? lat,
     double? lng,
-  }) {
-    return _client.from('zones').insert({
+  }) async {
+    await _client.from('zones').insert({
       'name': name,
       'area_type': areaType,
       'campus_id': campusId,
@@ -167,14 +224,31 @@ class AdminRepository {
       'lat': lat,
       'lng': lng,
     });
+    await _logAction(
+      action: 'zone.create',
+      targetType: 'zone',
+      details: 'Created zone "$name"',
+    );
   }
 
-  Future<void> updateZone(String zoneId, Map<String, dynamic> patch) {
-    return _client.from('zones').update(patch).eq('zone_id', zoneId);
+  Future<void> updateZone(String zoneId, Map<String, dynamic> patch) async {
+    await _client.from('zones').update(patch).eq('zone_id', zoneId);
+    await _logAction(
+      action: 'zone.update',
+      targetType: 'zone',
+      targetId: zoneId,
+      details: 'Updated zone "${patch['name'] ?? zoneId}"',
+    );
   }
 
-  Future<void> deleteZone(String zoneId) {
-    return _client.from('zones').delete().eq('zone_id', zoneId);
+  Future<void> deleteZone(String zoneId) async {
+    await _client.from('zones').delete().eq('zone_id', zoneId);
+    await _logAction(
+      action: 'zone.delete',
+      targetType: 'zone',
+      targetId: zoneId,
+      details: 'Deleted zone',
+    );
   }
 
   // ---- responders / admins ("people") ----------------------------------
@@ -198,8 +272,8 @@ class AdminRepository {
     String? phone,
     required String organization,
     String? coverageZoneId,
-  }) {
-    return _client.from('responders').insert({
+  }) async {
+    await _client.from('responders').insert({
       'email': email,
       'full_name': fullName,
       'phone': phone,
@@ -208,34 +282,56 @@ class AdminRepository {
       'activation_status': 'invited',
       'status': 'active',
     });
+    await _logAction(
+      action: 'responder.invite',
+      targetType: 'responder',
+      details: 'Invited responder $fullName ($email)',
+    );
   }
 
   Future<void> inviteAdmin({
     required String email,
     required String fullName,
     required String phone,
-  }) {
-    return _client.from('admins').insert({
+  }) async {
+    await _client.from('admins').insert({
       'email': email,
       'full_name': fullName,
       'phone': phone,
       'activation_status': 'invited',
       'is_active': true,
     });
+    await _logAction(
+      action: 'admin.invite',
+      targetType: 'admin',
+      details: 'Invited admin $fullName ($email)',
+    );
   }
 
-  Future<void> setResponderDutyStatus(String responderId, String status) {
-    return _client
+  Future<void> setResponderDutyStatus(String responderId, String status) async {
+    await _client
         .from('responders')
         .update({'status': status})
         .eq('responder_id', responderId);
+    await _logAction(
+      action: 'responder.status',
+      targetType: 'responder',
+      targetId: responderId,
+      details: 'Set responder duty status to "$status"',
+    );
   }
 
-  Future<void> setAdminActive(String adminId, bool isActive) {
-    return _client
+  Future<void> setAdminActive(String adminId, bool isActive) async {
+    await _client
         .from('admins')
         .update({'is_active': isActive})
         .eq('admin_id', adminId);
+    await _logAction(
+      action: 'admin.active',
+      targetType: 'admin',
+      targetId: adminId,
+      details: isActive ? 'Reactivated admin account' : 'Deactivated admin account',
+    );
   }
 
   // ---- safety broadcasts -----------------------------------------------
@@ -255,10 +351,10 @@ class AdminRepository {
     required String level,
     String? targetCampusId,
     DateTime? scheduledAt,
-  }) {
+  }) async {
     final now = DateTime.now();
     final isImmediate = scheduledAt == null || !scheduledAt.isAfter(now);
-    return _client.from('safety_broadcasts').insert({
+    await _client.from('safety_broadcasts').insert({
       'title': title,
       'message': message,
       'level': level,
@@ -270,13 +366,25 @@ class AdminRepository {
       'scheduled_at': scheduledAt?.toUtc().toIso8601String(),
       'sent_at': isImmediate ? now.toUtc().toIso8601String() : null,
     });
+    await _logAction(
+      action: 'broadcast.create',
+      targetType: 'broadcast',
+      details: 'Created ${isImmediate ? 'and sent' : 'a scheduled'} '
+          'broadcast "$title" ($level)',
+    );
   }
 
-  Future<void> retractBroadcast(String broadcastId) {
-    return _client
+  Future<void> retractBroadcast(String broadcastId) async {
+    await _client
         .from('safety_broadcasts')
         .update({'retracted_at': DateTime.now().toUtc().toIso8601String()})
         .eq('broadcast_id', broadcastId);
+    await _logAction(
+      action: 'broadcast.retract',
+      targetType: 'broadcast',
+      targetId: broadcastId,
+      details: 'Retracted broadcast',
+    );
   }
 
   // ---- resources ---------------------------------------------------------
@@ -294,14 +402,19 @@ class AdminRepository {
     required String content,
     String? category,
     required String type,
-  }) {
-    return _client.from('resources').insert({
+  }) async {
+    await _client.from('resources').insert({
       'title': title,
       'content': content,
       'category': category,
       'type': type,
       'status': 'published',
     });
+    await _logAction(
+      action: 'resource.create',
+      targetType: 'resource',
+      details: 'Added resource "$title"',
+    );
   }
 
   Future<void> updateResource(String resourceId, Map<String, dynamic> patch) {
@@ -311,12 +424,24 @@ class AdminRepository {
         .eq('resource_id', resourceId);
   }
 
-  Future<void> approveResource(String resourceId) {
-    return updateResource(resourceId, {'status': 'published'});
+  Future<void> approveResource(String resourceId) async {
+    await updateResource(resourceId, {'status': 'published'});
+    await _logAction(
+      action: 'resource.approve',
+      targetType: 'resource',
+      targetId: resourceId,
+      details: 'Approved a community-submitted resource',
+    );
   }
 
-  Future<void> rejectResource(String resourceId) {
-    return _client.from('resources').delete().eq('resource_id', resourceId);
+  Future<void> rejectResource(String resourceId) async {
+    await _client.from('resources').delete().eq('resource_id', resourceId);
+    await _logAction(
+      action: 'resource.reject',
+      targetType: 'resource',
+      targetId: resourceId,
+      details: 'Rejected a community-submitted resource',
+    );
   }
 
   Future<void> deleteResource(String resourceId) {
@@ -333,11 +458,17 @@ class AdminRepository {
     return List<Map<String, dynamic>>.from(rows);
   }
 
-  Future<void> setReportStatus(String reportId, String status) {
-    return _client
+  Future<void> setReportStatus(String reportId, String status) async {
+    await _client
         .from('incident_reports')
         .update({'status': status})
         .eq('report_id', reportId);
+    await _logAction(
+      action: 'report.status',
+      targetType: 'incident_report',
+      targetId: reportId,
+      details: 'Set incident report status to "$status"',
+    );
   }
 
   // ---- walking groups --------------------------------------------------
@@ -350,11 +481,17 @@ class AdminRepository {
     return List<Map<String, dynamic>>.from(rows);
   }
 
-  Future<void> setGroupStatus(String groupId, String status) {
-    return _client
+  Future<void> setGroupStatus(String groupId, String status) async {
+    await _client
         .from('walking_groups')
         .update({'status': status})
         .eq('group_id', groupId);
+    await _logAction(
+      action: 'group.status',
+      targetType: 'walking_group',
+      targetId: groupId,
+      details: 'Set walking group status to "$status"',
+    );
   }
 
   // ---- emergency contacts -----------------------------------------------
@@ -370,28 +507,45 @@ class AdminRepository {
   Future<void> createEmergencyContact({
     required String serviceName,
     required String phoneNumber,
-  }) {
-    return _client.from('emergency_contacts').insert({
+  }) async {
+    await _client.from('emergency_contacts').insert({
       'service_name': serviceName,
       'phone_number': phoneNumber,
     });
+    await _logAction(
+      action: 'contact.create',
+      targetType: 'emergency_contact',
+      details: 'Added emergency contact "$serviceName"',
+    );
   }
 
   Future<void> updateEmergencyContact(
     String contactId,
     Map<String, dynamic> patch,
-  ) {
-    return _client
+  ) async {
+    await _client
         .from('emergency_contacts')
         .update(patch)
         .eq('contact_id', contactId);
+    await _logAction(
+      action: 'contact.update',
+      targetType: 'emergency_contact',
+      targetId: contactId,
+      details: 'Updated emergency contact "${patch['service_name'] ?? contactId}"',
+    );
   }
 
-  Future<void> deleteEmergencyContact(String contactId) {
-    return _client
+  Future<void> deleteEmergencyContact(String contactId) async {
+    await _client
         .from('emergency_contacts')
         .delete()
         .eq('contact_id', contactId);
+    await _logAction(
+      action: 'contact.delete',
+      targetType: 'emergency_contact',
+      targetId: contactId,
+      details: 'Deleted emergency contact',
+    );
   }
 
   // ---- Safe Ride reports -------------------------------------------
@@ -416,8 +570,8 @@ class AdminRepository {
     required bool approve,
     String? severity,
     bool needsIntervention = false,
-  }) {
-    return _client
+  }) async {
+    await _client
         .from('vehicle_offenses')
         .update({
           'status': approve ? 'approved' : 'rejected',
@@ -426,5 +580,12 @@ class AdminRepository {
           if (approve) 'needs_intervention': needsIntervention,
         })
         .eq('offense_id', offenseId);
+    await _logAction(
+      action: 'safe_ride_report.review',
+      targetType: 'vehicle_offense',
+      targetId: offenseId,
+      details: approve
+          ? 'Approved a Safe Ride offense report'
+          : 'Rejected a Safe Ride offense report',
+    );
   }
-}

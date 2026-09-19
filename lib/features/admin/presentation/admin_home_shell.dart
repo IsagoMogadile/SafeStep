@@ -5,6 +5,7 @@ import '../../../core/widgets/confirm_logout.dart';
 import '../../auth/presentation/welcome_screen.dart';
 import '../data/admin_repository.dart';
 import 'alerts_tab.dart';
+import 'audit_logs_tab.dart';
 import 'broadcasts_tab.dart';
 import 'emergency_contacts_tab.dart';
 import 'groups_tab.dart';
@@ -28,6 +29,7 @@ const _sections = [
   (icon: Icons.groups_outlined, label: 'Walking Groups'),
   (icon: Icons.call_outlined, label: 'Emergency Contacts'),
   (icon: Icons.school_outlined, label: 'Students'),
+  (icon: Icons.history_outlined, label: 'Audit Logs'),
 ];
 
 /// Admin post-login shell (scope.md §7) — web-only, so a side
@@ -151,6 +153,7 @@ class _AdminHomeShellState extends State<AdminHomeShell> {
                     const GroupsTab(),
                     const EmergencyContactsTab(),
                     const StudentsTab(),
+                    const AuditLogsTab(),
                   ],
                 ),
               ),
