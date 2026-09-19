@@ -35,9 +35,10 @@ const _fullNoticeText =
     'agreement — none of that exists here; this prototype is a design '
     'concept, not a certified safety system.';
 
-/// scope.md §8 "Privacy & POPIA": tiered data visibility (§5) explained
-/// plainly, not just in the abstract — who specifically sees each kind
-/// of information, and exactly when.
+///Kopano Mogadile
+/// Buhle Ndlovu
+/// Keamogetswe Molefane
+
 class PrivacyNoticeScreen extends StatelessWidget {
   const PrivacyNoticeScreen({super.key});
 
@@ -203,7 +204,7 @@ class PrivacyNoticeScreen extends StatelessWidget {
     );
   }
 }
-
+/// Teboho Mothibi
 class _Section extends StatelessWidget {
   const _Section({required this.heading, required this.body})
     : child = null;
