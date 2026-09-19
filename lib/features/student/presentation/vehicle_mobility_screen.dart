@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/supabase/supabase_service.dart';
+import 'edit_vehicle_mobility_info_screen.dart';
 
-/// Editable from Profile after registration too — the wizard step is
-/// skippable, so students should be able to fill this in later.
+/// View-only by design, so the student can't accidentally change vehicle
+/// or mobility info while just checking what's on file. Editing happens on
+/// [EditVehicleMobilityInfoScreen], reached via the AppBar "Edit" action —
+/// same pattern as the Medical Info Card / [EditMedicalInfoScreen].
 class VehicleMobilityScreen extends StatefulWidget {
   const VehicleMobilityScreen({super.key});
 
@@ -12,10 +15,9 @@ class VehicleMobilityScreen extends StatefulWidget {
 }
 
 class _VehicleMobilityScreenState extends State<VehicleMobilityScreen> {
-  final _vehicleController = TextEditingController();
-  final _mobilityController = TextEditingController();
   bool _isLoading = true;
-  bool _isSaving = false;
+  String _vehicleInfo = '';
+  String _mobilityNotes = '';
 
   String get _userId => SupabaseService.client.auth.currentUser!.id;
 
@@ -31,41 +33,42 @@ class _VehicleMobilityScreenState extends State<VehicleMobilityScreen> {
         .select('vehicle_info, mobility_notes')
         .eq('student_id', _userId)
         .maybeSingle();
-    _vehicleController.text = (row?['vehicle_info'] as String?) ?? '';
-    _mobilityController.text = (row?['mobility_notes'] as String?) ?? '';
-    if (mounted) setState(() => _isLoading = false);
-  }
-
-  Future<void> _save() async {
-    setState(() => _isSaving = true);
-    try {
-      await SupabaseService.client
-          .from('students')
-          .update({
-            'vehicle_info': _vehicleController.text.trim(),
-            'mobility_notes': _mobilityController.text.trim(),
-          })
-          .eq('student_id', _userId);
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Saved')));
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
+    if (mounted) {
+      setState(() {
+        _vehicleInfo = (row?['vehicle_info'] as String?) ?? '';
+        _mobilityNotes = (row?['mobility_notes'] as String?) ?? '';
+        _isLoading = false;
+      });
     }
   }
 
-  @override
-  void dispose() {
-    _vehicleController.dispose();
-    _mobilityController.dispose();
-    super.dispose();
+  Future<void> _edit() async {
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => EditVehicleMobilityInfoScreen(
+          vehicleInfo: _vehicleInfo,
+          mobilityNotes: _mobilityNotes,
+        ),
+      ),
+    );
+    if (saved == true) _load();
   }
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Vehicle & Mobility Info')),
+      appBar: AppBar(
+        title: const Text('Vehicle & Mobility Info'),
+        actions: [
+          TextButton.icon(
+            onPressed: _isLoading ? null : _edit,
+            icon: const Icon(Icons.edit_outlined),
+            label: const Text('Edit'),
+          ),
+        ],
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
@@ -78,43 +81,89 @@ class _VehicleMobilityScreenState extends State<VehicleMobilityScreen> {
                       'Both optional. Only visible to a responder during an '
                       'active alert — never public, never browsable by admin.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _vehicleController,
-                      decoration: const InputDecoration(
-                        labelText: 'Vehicle Info',
-                        hintText: 'Make, model, colour, plate',
-                        prefixIcon: Icon(Icons.directions_car_outlined),
+                    Card(
+                      elevation: 0,
+                      color: colorScheme.surfaceContainerHigh,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _mobilityController,
-                      maxLines: 3,
-                      decoration: const InputDecoration(
-                        labelText: 'Mobility Notes',
-                        hintText: 'Anything responders should know',
-                        prefixIcon: Icon(Icons.accessible_outlined),
+                      child: Column(
+                        children: [
+                          _VehicleMobilityTile(
+                            icon: Icons.directions_car_outlined,
+                            label: 'Vehicle Info',
+                            value: _vehicleInfo,
+                          ),
+                          const Divider(height: 1),
+                          _VehicleMobilityTile(
+                            icon: Icons.accessible_outlined,
+                            label: 'Mobility Notes',
+                            value: _mobilityNotes,
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: _isSaving ? null : _save,
-                      child: _isSaving
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2.4),
-                            )
-                          : const Text('Save'),
                     ),
                   ],
                 ),
               ),
             ),
+    );
+  }
+}
+
+/// A single read-only row: no `TextField`/`onTap`, so it can't open a
+/// keyboard or any editing control — viewing this screen can never mutate
+/// the underlying vehicle/mobility info.
+class _VehicleMobilityTile extends StatelessWidget {
+  const _VehicleMobilityTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final hasValue = value.trim().isNotEmpty;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: colorScheme.onSurfaceVariant, size: 20),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  hasValue ? value : 'Not set',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: hasValue ? null : colorScheme.onSurfaceVariant,
+                    fontStyle: hasValue ? FontStyle.normal : FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
