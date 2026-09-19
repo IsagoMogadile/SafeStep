@@ -69,3 +69,59 @@ const bloodTypeOptions = <String>[
   'O-',
   'Unknown',
 ];
+
+/// Structured view over the `students.medical_info` text column
+/// (scope.md §5 "Medical info card"). The schema only has one column, so
+/// this composes its fields into one formatted block on save and parses
+/// that same format back out on load — shared by the student's view and
+/// edit screens so there's a single place that knows the format.
+class MedicalInfo {
+  const MedicalInfo({
+    this.bloodType,
+    this.allergies = '',
+    this.conditions = '',
+    this.notes = '',
+  });
+
+  final String? bloodType;
+  final String allergies;
+  final String conditions;
+  final String notes;
+
+  factory MedicalInfo.parse(String? raw) {
+    String? bloodType;
+    var allergies = '';
+    var conditions = '';
+    var notes = '';
+    if (raw != null && raw.isNotEmpty) {
+      for (final line in raw.split('\n')) {
+        if (line.startsWith('Blood type: ')) {
+          final value = line.substring('Blood type: '.length).trim();
+          if (bloodTypeOptions.contains(value)) bloodType = value;
+        } else if (line.startsWith('Allergies: ')) {
+          allergies = line.substring('Allergies: '.length);
+        } else if (line.startsWith('Conditions: ')) {
+          conditions = line.substring('Conditions: '.length);
+        } else if (line.startsWith('Notes: ')) {
+          notes = line.substring('Notes: '.length);
+        }
+      }
+    }
+    return MedicalInfo(
+      bloodType: bloodType,
+      allergies: allergies,
+      conditions: conditions,
+      notes: notes,
+    );
+  }
+
+  String toRaw() {
+    final lines = <String>[
+      if (bloodType != null) 'Blood type: $bloodType',
+      if (allergies.trim().isNotEmpty) 'Allergies: ${allergies.trim()}',
+      if (conditions.trim().isNotEmpty) 'Conditions: ${conditions.trim()}',
+      if (notes.trim().isNotEmpty) 'Notes: ${notes.trim()}',
+    ];
+    return lines.join('\n');
+  }
+}
