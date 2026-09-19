@@ -7,7 +7,7 @@ import '../../student/presentation/student_home_shell.dart';
 import '../data/auth_repository.dart';
 import '../domain/app_role.dart';
 import 'forgot_password_screen.dart';
-import 'student_wizard_screen.dart';
+import 'incomplete_account_screen.dart';
 import 'widgets/auth_branding_header.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -67,12 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
         case AppRole.admin:
           _goTo(const AdminHomeShell());
         case null:
-          _goTo(
-            StudentWizardScreen(
-              userId: userId,
-              email: _emailController.text.trim(),
-            ),
-          );
+          _goTo(const IncompleteAccountScreen());
       }
     } on AuthException catch (e) {
       setState(() => _errorMessage = e.message);

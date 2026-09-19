@@ -115,6 +115,7 @@ class _SafeRideScreenState extends State<SafeRideScreen> {
       builder: (context) => _ReportVehicleSheet(
         repository: _repository,
         initialPlate: _plateController.text.trim(),
+        existingRecord: _record,
       ),
     );
     if (reported == true && mounted) {
@@ -210,8 +211,9 @@ class _SafeRideScreenState extends State<SafeRideScreen> {
                         const SizedBox(width: 12),
                         const Expanded(
                           child: Text(
-                            'No record found for this plate. No history on '
-                            "file doesn't guarantee safety — stay alert.",
+                            'No ride info — this plate isn\'t a registered '
+                            'e-hailing/taxi driver on file. No record doesn\'t '
+                            'guarantee safety — stay alert.',
                           ),
                         ),
                       ],
@@ -246,6 +248,10 @@ class _SafeRideScreenState extends State<SafeRideScreen> {
                         const SizedBox(height: 8),
                         Text(risk.feedback),
                         const SizedBox(height: 12),
+                        Text(
+                          _record!['driver_name'] as String? ?? 'Unknown driver',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
                         Text(
                           [
                             _record!['vehicle_colour'],
@@ -292,10 +298,19 @@ class _SafeRideScreenState extends State<SafeRideScreen> {
 }
 
 class _ReportVehicleSheet extends StatefulWidget {
-  const _ReportVehicleSheet({required this.repository, required this.initialPlate});
+  const _ReportVehicleSheet({
+    required this.repository,
+    required this.initialPlate,
+    this.existingRecord,
+  });
 
   final SafeRideRepository repository;
   final String initialPlate;
+
+  /// The vehicle_records row already on file for this plate, if the
+  /// student just checked it — auto-fills driver/vehicle details instead
+  /// of asking the student to re-type facts the app already knows.
+  final Map<String, dynamic>? existingRecord;
 
   @override
   State<_ReportVehicleSheet> createState() => _ReportVehicleSheetState();
@@ -303,11 +318,21 @@ class _ReportVehicleSheet extends StatefulWidget {
 
 class _ReportVehicleSheetState extends State<_ReportVehicleSheet> {
   late final _plateController = TextEditingController(text: widget.initialPlate);
-  final _driverController = TextEditingController();
-  final _vehicleController = TextEditingController();
+  late final _driverController = TextEditingController(
+    text: widget.existingRecord?['driver_name'] as String? ?? '',
+  );
+  late final _vehicleController = TextEditingController(
+    text: [
+      widget.existingRecord?['vehicle_colour'],
+      widget.existingRecord?['vehicle_make'],
+      widget.existingRecord?['vehicle_model'],
+    ].where((v) => v != null).join(' '),
+  );
   final _descriptionController = TextEditingController();
   bool _isSubmitting = false;
   String? _errorMessage;
+
+  bool get _isKnownVehicle => widget.existingRecord != null;
 
   @override
   void dispose() {
@@ -366,7 +391,8 @@ class _ReportVehicleSheetState extends State<_ReportVehicleSheet> {
             Text('Report This Car', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 4),
             Text(
-              'Takes effect immediately and adds to this plate\'s record.',
+              'An admin reviews every report before it affects this plate\'s '
+              'record — you\'ll be notified once it\'s resolved.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 16),
@@ -381,18 +407,20 @@ class _ReportVehicleSheetState extends State<_ReportVehicleSheet> {
             const SizedBox(height: 12),
             TextField(
               controller: _driverController,
-              decoration: const InputDecoration(
-                labelText: 'Driver Name (optional)',
-                prefixIcon: Icon(Icons.person_outline),
+              enabled: !_isKnownVehicle,
+              decoration: InputDecoration(
+                labelText: _isKnownVehicle ? 'Driver Name (on file)' : 'Driver Name (optional)',
+                prefixIcon: const Icon(Icons.person_outline),
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _vehicleController,
-              decoration: const InputDecoration(
-                labelText: 'Vehicle (optional)',
+              enabled: !_isKnownVehicle,
+              decoration: InputDecoration(
+                labelText: _isKnownVehicle ? 'Vehicle (on file)' : 'Vehicle (optional)',
                 hintText: 'e.g. White Toyota Corolla',
-                prefixIcon: Icon(Icons.local_taxi_outlined),
+                prefixIcon: const Icon(Icons.local_taxi_outlined),
               ),
             ),
             const SizedBox(height: 12),

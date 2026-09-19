@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 import '../../../core/notifications/notification_service.dart';
 import '../../../core/supabase/supabase_service.dart';
 
@@ -11,9 +13,14 @@ import '../../../core/supabase/supabase_service.dart';
 /// codebase's existing pattern for the companion-invite accept flow
 /// (walk_active_screen.dart) rather than introducing a new mechanism.
 class AlertStatusPoller {
-  AlertStatusPoller({required this.studentId});
+  AlertStatusPoller({required this.studentId, this.onChange});
 
   final String studentId;
+
+  /// Called after any status change is detected, so the caller can
+  /// refresh the bell-icon unread badge without waiting for the student
+  /// to reopen the Alerts screen.
+  final VoidCallback? onChange;
   Timer? _timer;
   final Map<String, String> _lastKnownStatus = {};
   bool _seeded = false;
@@ -44,6 +51,7 @@ class AlertStatusPoller {
       final previous = _lastKnownStatus[id];
       if (_seeded && previous != null && previous != status) {
         await _notify(status);
+        onChange?.call();
       }
       _lastKnownStatus[id] = status;
     }

@@ -38,6 +38,22 @@ class AuthRepository {
 
   Future<void> signOut() => _client.auth.signOut();
 
+  /// Checks an email BEFORE creating anything, via a SECURITY DEFINER RPC
+  /// callable while unauthenticated (supabase/migrations/0015). Fixes the
+  /// "create account -> something went wrong -> user already exists" bug:
+  /// the old flow called signUp() the moment email+password were entered,
+  /// so abandoning the wizard left a real, permanent auth account with no
+  /// completed profile, and a retry then failed with a confusing
+  /// "already registered" error. Returns 'active' (a real account already
+  /// exists — tell them to log in), 'invited' (a responder/admin invite
+  /// is waiting — the existing single-screen self-activation is fine),
+  /// or 'none' (safe to defer real account creation to the end of the
+  /// student wizard).
+  Future<String> checkEmailStatus(String email) async {
+    final result = await _client.rpc('check_email_status', params: {'p_email': email});
+    return result as String;
+  }
+
   /// After a fresh signUp, checks whether this email matches a pending
   /// responder or admin invite row created ahead of time by an admin.
   /// If found, links it (`user_id` + `activation_status: 'active'`) and

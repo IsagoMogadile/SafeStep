@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 import '../../../core/notifications/notification_service.dart';
 import 'safe_ride_repository.dart';
 
@@ -9,9 +11,10 @@ import 'safe_ride_repository.dart';
 /// "Received" is confirmed immediately in the UI on submit; this covers
 /// "resolved".
 class SafeRideReportPoller {
-  SafeRideReportPoller({required this.studentId});
+  SafeRideReportPoller({required this.studentId, this.onChange});
 
   final String studentId;
+  final VoidCallback? onChange;
   final _repository = SafeRideRepository();
   Timer? _timer;
   final Map<String, String> _lastKnownStatus = {};
@@ -44,6 +47,7 @@ class SafeRideReportPoller {
               ? 'Your report on ${plate ?? 'a vehicle'} was reviewed and approved.'
               : 'Your report on ${plate ?? 'a vehicle'} was reviewed and closed.',
         );
+        onChange?.call();
       }
       _lastKnownStatus[id] = status;
     }

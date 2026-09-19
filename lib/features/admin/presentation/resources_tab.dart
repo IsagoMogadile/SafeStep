@@ -25,15 +25,19 @@ class _ResourcesTabState extends State<ResourcesTab> {
 
   void _refresh() => setState(() { _future = _repository.fetchResources(); });
 
-  Future<void> _openCreateResource() async {
-    final titleController = TextEditingController();
-    final contentController = TextEditingController();
-    final categoryController = TextEditingController();
+  Future<void> _openCreateResource() => _openResourceForm();
 
-    final created = await showDialog<bool>(
+  Future<void> _openEditResource(Map<String, dynamic> resource) => _openResourceForm(existing: resource);
+
+  Future<void> _openResourceForm({Map<String, dynamic>? existing}) async {
+    final titleController = TextEditingController(text: existing?['title'] as String?);
+    final contentController = TextEditingController(text: existing?['content'] as String?);
+    final categoryController = TextEditingController(text: existing?['category'] as String?);
+
+    final saved = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Add safety guidance'),
+        title: Text(existing == null ? 'Add safety guidance' : 'Edit guidance'),
         content: SizedBox(
           width: 440,
           child: SingleChildScrollView(
@@ -67,23 +71,56 @@ class _ResourcesTabState extends State<ResourcesTab> {
           FilledButton(
             onPressed: () async {
               if (titleController.text.trim().isEmpty) return;
-              await _repository.createResource(
-                title: titleController.text.trim(),
-                content: contentController.text.trim(),
-                category: categoryController.text.trim().isEmpty
-                    ? null
-                    : categoryController.text.trim(),
-                type: 'guidance',
-              );
+              if (existing == null) {
+                await _repository.createResource(
+                  title: titleController.text.trim(),
+                  content: contentController.text.trim(),
+                  category: categoryController.text.trim().isEmpty
+                      ? null
+                      : categoryController.text.trim(),
+                  type: 'guidance',
+                );
+              } else {
+                await _repository.updateResource(existing['resource_id'] as String, {
+                  'title': titleController.text.trim(),
+                  'content': contentController.text.trim(),
+                  'category': categoryController.text.trim().isEmpty
+                      ? null
+                      : categoryController.text.trim(),
+                });
+              }
               if (context.mounted) Navigator.of(context).pop(true);
             },
-            child: const Text('Publish'),
+            child: Text(existing == null ? 'Publish' : 'Save'),
           ),
         ],
       ),
     );
 
-    if (created == true) _refresh();
+    if (saved == true) _refresh();
+  }
+
+  Future<void> _confirmDelete(Map<String, dynamic> resource) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete this guidance?'),
+        content: Text('Remove "${resource['title']}"? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _repository.deleteResource(resource['resource_id'] as String);
+    _refresh();
   }
 
   @override
@@ -119,12 +156,24 @@ class _ResourcesTabState extends State<ResourcesTab> {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 8),
-              for (final r in pending) _ResourceCard(resource: r, onChanged: _refresh),
+              for (final r in pending)
+                _ResourceCard(
+                  resource: r,
+                  onChanged: _refresh,
+                  onEdit: () => _openEditResource(r),
+                  onDelete: () => _confirmDelete(r),
+                ),
             ],
             const SizedBox(height: 20),
             Text('Published (${published.length})', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            for (final r in published) _ResourceCard(resource: r, onChanged: _refresh),
+            for (final r in published)
+              _ResourceCard(
+                resource: r,
+                onChanged: _refresh,
+                onEdit: () => _openEditResource(r),
+                onDelete: () => _confirmDelete(r),
+              ),
           ],
         );
       },
@@ -133,10 +182,17 @@ class _ResourcesTabState extends State<ResourcesTab> {
 }
 
 class _ResourceCard extends StatelessWidget {
-  const _ResourceCard({required this.resource, required this.onChanged});
+  const _ResourceCard({
+    required this.resource,
+    required this.onChanged,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   final Map<String, dynamic> resource;
   final VoidCallback onChanged;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -161,29 +217,40 @@ class _ResourceCard extends StatelessWidget {
           '${resource['category'] ?? 'Uncategorized'} · ${resourceStatusLabel(status)}',
         ),
         isThreeLine: true,
-        trailing: isPending
-            ? Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.check_circle_outline, color: Colors.green),
-                    tooltip: 'Approve',
-                    onPressed: () async {
-                      await repo.approveResource(resource['resource_id'] as String);
-                      onChanged();
-                    },
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.cancel_outlined, color: Colors.red),
-                    tooltip: 'Reject',
-                    onPressed: () async {
-                      await repo.rejectResource(resource['resource_id'] as String);
-                      onChanged();
-                    },
-                  ),
-                ],
-              )
-            : null,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isPending) ...[
+              IconButton(
+                icon: const Icon(Icons.check_circle_outline, color: Colors.green),
+                tooltip: 'Approve',
+                onPressed: () async {
+                  await repo.approveResource(resource['resource_id'] as String);
+                  onChanged();
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.cancel_outlined, color: Colors.red),
+                tooltip: 'Reject',
+                onPressed: () async {
+                  await repo.rejectResource(resource['resource_id'] as String);
+                  onChanged();
+                },
+              ),
+            ] else ...[
+              IconButton(
+                icon: const Icon(Icons.edit_outlined),
+                tooltip: 'Edit',
+                onPressed: onEdit,
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline),
+                tooltip: 'Delete',
+                onPressed: onDelete,
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

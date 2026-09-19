@@ -9,7 +9,7 @@ import '../../student/presentation/student_home_shell.dart';
 import '../data/auth_repository.dart';
 import '../domain/app_role.dart';
 import 'biometric_lock_screen.dart';
-import 'student_wizard_screen.dart';
+import 'incomplete_account_screen.dart';
 import 'welcome_screen.dart';
 
 /// Root of the auth-aware navigation: watches the Supabase session and
@@ -125,12 +125,7 @@ class _RoleResolverState extends State<_RoleResolver> {
           case AppRole.admin:
             return const AdminHomeShell();
           case null:
-            // Signed up but never finished the student details wizard
-            // (e.g. app was closed mid-flow) — resume it.
-            return StudentWizardScreen(
-              userId: widget.userId,
-              email: widget.email,
-            );
+            return const IncompleteAccountScreen();
         }
       },
     );

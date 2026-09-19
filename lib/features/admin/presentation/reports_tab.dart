@@ -56,6 +56,39 @@ class _ReportsTabState extends State<ReportsTab> {
   }
 }
 
+void _openFullScreenPhoto(BuildContext context, String url) {
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => _FullScreenPhotoScreen(url: url),
+    ),
+  );
+}
+
+class _FullScreenPhotoScreen extends StatelessWidget {
+  const _FullScreenPhotoScreen({required this.url});
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          minScale: 0.5,
+          maxScale: 5,
+          child: Image.network(url, fit: BoxFit.contain),
+        ),
+      ),
+    );
+  }
+}
+
 class _ReportCard extends StatelessWidget {
   const _ReportCard({required this.report, required this.onChanged});
 
@@ -122,12 +155,15 @@ class _ReportCard extends StatelessWidget {
             ),
             if (report['photo_url'] != null) ...[
               const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  report['photo_url'] as String,
-                  height: 140,
-                  fit: BoxFit.cover,
+              GestureDetector(
+                onTap: () => _openFullScreenPhoto(context, report['photo_url'] as String),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    report['photo_url'] as String,
+                    height: 140,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
             ],

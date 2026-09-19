@@ -319,6 +319,10 @@ class AdminRepository {
     return _client.from('resources').delete().eq('resource_id', resourceId);
   }
 
+  Future<void> deleteResource(String resourceId) {
+    return _client.from('resources').delete().eq('resource_id', resourceId);
+  }
+
   // ---- incident reports ----------------------------------------------
 
   Future<List<Map<String, dynamic>>> fetchReports() async {
@@ -407,12 +411,19 @@ class AdminRepository {
     return List<Map<String, dynamic>>.from(rows);
   }
 
-  Future<void> resolveSafeRideReport(String offenseId, {required bool approve}) {
+  Future<void> resolveSafeRideReport(
+    String offenseId, {
+    required bool approve,
+    String? severity,
+    bool needsIntervention = false,
+  }) {
     return _client
         .from('vehicle_offenses')
         .update({
           'status': approve ? 'approved' : 'rejected',
           'reviewed_at': DateTime.now().toUtc().toIso8601String(),
+          if (approve && severity != null) 'severity': severity,
+          if (approve) 'needs_intervention': needsIntervention,
         })
         .eq('offense_id', offenseId);
   }

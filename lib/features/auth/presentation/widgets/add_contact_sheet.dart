@@ -14,12 +14,24 @@ import '../../domain/student_details.dart';
 class AddContactSheet extends StatefulWidget {
   const AddContactSheet({
     super.key,
-    required this.studentId,
-    required this.repository,
-  });
+    this.studentId,
+    this.repository,
+    this.onLocalAdd,
+  }) : assert(
+         (studentId != null && repository != null) || onLocalAdd != null,
+         'Either studentId+repository (writes immediately) or onLocalAdd '
+         '(collects in memory, for the pre-account wizard) must be given.',
+       );
 
-  final String studentId;
-  final TrustedContactRepository repository;
+  final String? studentId;
+  final TrustedContactRepository? repository;
+
+  /// When set, the sheet doesn't write to the database at all — it just
+  /// hands the entered fields back to the caller. Used by the student
+  /// wizard before an account exists yet (no studentId to attach a real
+  /// row to); the caller inserts everything for real once signup
+  /// actually happens at the wizard's final confirm step.
+  final ValueChanged<Map<String, dynamic>>? onLocalAdd;
 
   @override
   State<AddContactSheet> createState() => _AddContactSheetState();
@@ -101,13 +113,22 @@ class _AddContactSheetState extends State<AddContactSheet> {
         : _relationship!;
 
     try {
-      await widget.repository.addContact(
-        studentId: widget.studentId,
-        name: _nameController.text.trim(),
-        relationship: relationship,
-        email: email.isEmpty ? null : email,
-        phone: phone.isEmpty ? null : phone,
-      );
+      if (widget.onLocalAdd != null) {
+        widget.onLocalAdd!({
+          'name': _nameController.text.trim(),
+          'relationship': relationship,
+          'email': email.isEmpty ? null : email,
+          'phone': phone.isEmpty ? null : phone,
+        });
+      } else {
+        await widget.repository!.addContact(
+          studentId: widget.studentId!,
+          name: _nameController.text.trim(),
+          relationship: relationship,
+          email: email.isEmpty ? null : email,
+          phone: phone.isEmpty ? null : phone,
+        );
+      }
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       setState(() => _errorMessage = 'Could not save this contact. Try again.');

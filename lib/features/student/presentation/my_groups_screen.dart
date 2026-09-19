@@ -122,16 +122,24 @@ class _MyGroupsScreenState extends State<MyGroupsScreen> {
                   ),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(14),
-                    onTap: () async {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => GroupDetailScreen(
-                            groupId: group['group_id'] as String,
-                          ),
-                        ),
-                      );
-                      _refresh();
-                    },
+                    onTap: status == 'rejected'
+                        ? () => ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                "This group wasn't approved and is no longer accessible.",
+                              ),
+                            ),
+                          )
+                        : () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => GroupDetailScreen(
+                                  groupId: group['group_id'] as String,
+                                ),
+                              ),
+                            );
+                            _refresh();
+                          },
                     child: Padding(
                       padding: const EdgeInsets.all(14),
                       child: Column(

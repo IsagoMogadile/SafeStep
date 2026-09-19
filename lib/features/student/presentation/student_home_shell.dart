@@ -50,8 +50,14 @@ class _StudentHomeShellState extends State<StudentHomeShell> {
     _widgetClickSub = HomeWidget.widgetClicked.listen(_handleWidgetUri);
     final studentId = SupabaseService.client.auth.currentUser?.id;
     if (studentId != null) {
-      _alertStatusPoller = AlertStatusPoller(studentId: studentId)..start();
-      _safeRideReportPoller = SafeRideReportPoller(studentId: studentId)..start();
+      _alertStatusPoller = AlertStatusPoller(
+        studentId: studentId,
+        onChange: _refreshUnreadBadge,
+      )..start();
+      _safeRideReportPoller = SafeRideReportPoller(
+        studentId: studentId,
+        onChange: _refreshUnreadBadge,
+      )..start();
     }
   }
 
@@ -105,18 +111,52 @@ class _StudentHomeShellState extends State<StudentHomeShell> {
         .maybeSingle();
   }
 
+  // Counts everything the bell icon's list can show (safety broadcasts,
+  // this student's own alert status updates, and resolved Safe Ride
+  // reports) that's newer than the last time they opened it — the badge
+  // dot needs to reflect the same combined feed AlertsScreen shows, not
+  // just broadcasts.
   Future<int> _fetchUnreadAlertsCount() async {
     final lastSeen = await AlertsSeenPrefs.lastSeen();
-    var query = SupabaseService.client
+    final userId = SupabaseService.client.auth.currentUser?.id;
+
+    var broadcastQuery = SupabaseService.client
         .from('safety_broadcasts')
         .select('broadcast_id')
         .not('sent_at', 'is', null)
         .filter('retracted_at', 'is', null);
     if (lastSeen != null) {
-      query = query.gt('sent_at', lastSeen.toIso8601String());
+      broadcastQuery = broadcastQuery.gt('sent_at', lastSeen.toIso8601String());
     }
-    final rows = await query.count(CountOption.exact);
-    return rows.count;
+    var total = (await broadcastQuery.count(CountOption.exact)).count;
+
+    if (userId != null) {
+      var alertQuery = SupabaseService.client
+          .from('alerts')
+          .select('alert_id')
+          .eq('student_id', userId)
+          .not('status', 'in', '(new)');
+      if (lastSeen != null) {
+        alertQuery = alertQuery.gt('created_at', lastSeen.toIso8601String());
+      }
+      total += (await alertQuery.count(CountOption.exact)).count;
+
+      var reportQuery = SupabaseService.client
+          .from('vehicle_offenses')
+          .select('offense_id')
+          .eq('reported_by_student_id', userId)
+          .not('status', 'in', '(pending_review)');
+      if (lastSeen != null) {
+        reportQuery = reportQuery.gt('reviewed_at', lastSeen.toIso8601String());
+      }
+      total += (await reportQuery.count(CountOption.exact)).count;
+    }
+
+    return total;
+  }
+
+  void _refreshUnreadBadge() {
+    if (mounted) setState(() { _unreadAlertsFuture = _fetchUnreadAlertsCount(); });
   }
 
   Future<void> _openAlerts() async {

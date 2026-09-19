@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../student/domain/safe_ride_risk.dart';
 import '../data/admin_repository.dart';
 import 'widgets/admin_async_error.dart';
 
@@ -27,8 +28,67 @@ class _SafeRideReportsTabState extends State<SafeRideReportsTab> {
 
   void _refresh() => setState(() { _future = _repository.fetchPendingSafeRideReports(); });
 
-  Future<void> _resolve(String offenseId, {required bool approve}) async {
-    await _repository.resolveSafeRideReport(offenseId, approve: approve);
+  Future<void> _reject(String offenseId) async {
+    await _repository.resolveSafeRideReport(offenseId, approve: false);
+    _refresh();
+  }
+
+  Future<void> _openApproveDialog(Map<String, dynamic> report) async {
+    String severity = 'moderate';
+    bool needsIntervention = false;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Approve report'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Category of offense'),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: ['minor', 'moderate', 'severe'].map((s) {
+                  return ChoiceChip(
+                    label: Text(severityLabel(s)),
+                    selected: severity == s,
+                    onSelected: (_) => setDialogState(() => severity = s),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 12),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                value: needsIntervention,
+                onChanged: (v) => setDialogState(() => needsIntervention = v ?? false),
+                title: const Text('Needs responder/police intervention'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Approve'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true) return;
+
+    await _repository.resolveSafeRideReport(
+      report['offense_id'] as String,
+      approve: true,
+      severity: severity,
+      needsIntervention: needsIntervention,
+    );
     _refresh();
   }
 
@@ -53,8 +113,8 @@ class _SafeRideReportsTabState extends State<SafeRideReportsTab> {
             for (final r in reports)
               _SafeRideReportCard(
                 report: r,
-                onApprove: () => _resolve(r['offense_id'] as String, approve: true),
-                onReject: () => _resolve(r['offense_id'] as String, approve: false),
+                onApprove: () => _openApproveDialog(r),
+                onReject: () => _reject(r['offense_id'] as String),
               ),
           ],
         );

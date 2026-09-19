@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/supabase/supabase_service.dart';
 import '../../student/presentation/student_home_shell.dart';
+import '../data/auth_repository.dart';
 import '../data/student_registration_repository.dart';
 import '../data/trusted_contact_repository.dart';
 import '../domain/campus.dart';
@@ -14,17 +14,27 @@ import 'widgets/add_contact_sheet.dart';
 /// Post-signup details wizard (scope.md §5 "Registration" row + trusted
 /// contacts, matching docs/prototype.html's registration flow): primary
 /// campus & full name, DOB & gender, faculty & year & residence type,
-/// address, trusted contacts (min 3), then optional vehicle & mobility
-/// info before landing on Home.
+/// address, trusted contacts (min 3), optional vehicle & mobility info,
+/// then a review screen before landing on Home.
+///
+/// Deliberately does NOT create the auth account (or write anything to
+/// the database) until the final review step is confirmed — every step
+/// before that only touches local state. Feedback: "we only check if
+/// email already exists at entering login details, then after all
+/// information has been entered provide a summary, then confirm, then
+/// add to database" — the old flow called signUp() immediately on the
+/// email+password screen, so abandoning the wizard left a real,
+/// permanent auth account with no profile, which then made a retry with
+/// the same email fail with a confusing "already registered" error.
 class StudentWizardScreen extends StatefulWidget {
   const StudentWizardScreen({
     super.key,
-    required this.userId,
     required this.email,
+    required this.password,
   });
 
-  final String userId;
   final String email;
+  final String password;
 
   @override
   State<StudentWizardScreen> createState() => _StudentWizardScreenState();
@@ -33,6 +43,7 @@ class StudentWizardScreen extends StatefulWidget {
 class _StudentWizardScreenState extends State<StudentWizardScreen> {
   final _repository = StudentRegistrationRepository();
   final _contactRepository = TrustedContactRepository();
+  final _authRepository = AuthRepository();
   final _pageController = PageController();
 
   final _aboutYouFormKey = GlobalKey<FormState>();
@@ -56,7 +67,7 @@ class _StudentWizardScreenState extends State<StudentWizardScreen> {
   String? _errorMessage;
   List<Map<String, dynamic>> _contacts = [];
 
-  static const _totalSteps = 6;
+  static const _totalSteps = 7;
   static const _minContacts = 3;
 
   @override
@@ -128,7 +139,6 @@ class _StudentWizardScreenState extends State<StudentWizardScreen> {
         }
       case 3:
         if (!_addressFormKey.currentState!.validate()) return;
-        if (!await _saveStudentRow()) return;
       case 4:
         if (_contacts.length < _minContacts) {
           setState(
@@ -142,18 +152,48 @@ class _StudentWizardScreenState extends State<StudentWizardScreen> {
     _goToStep(_step + 1);
   }
 
-  /// Upsert so that going back to an earlier step and changing something
-  /// (full name, faculty, address, ...) actually persists, rather than
-  /// silently being dropped because the row already existed.
-  Future<bool> _saveStudentRow() async {
+  /// Purely local — nothing is written to the database until
+  /// [_confirmAndCreateAccount] runs from the review step.
+  Future<void> _openAddContactSheet() async {
+    await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => AddContactSheet(
+        onLocalAdd: (contact) => setState(() {
+          _contacts = [..._contacts, contact];
+          _errorMessage = null;
+        }),
+      ),
+    );
+  }
+
+  void _removeContact(int index) {
+    setState(() => _contacts = [..._contacts]..removeAt(index));
+  }
+
+  /// The actual account creation, deferred all the way to here: creates
+  /// the auth user, then the student profile, then every trusted
+  /// contact, then optional vehicle/mobility info — all in one place, so
+  /// nothing partial ever gets written unless this whole step is reached
+  /// and confirmed.
+  Future<void> _confirmAndCreateAccount() async {
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
     });
 
     try {
+      final response = await _authRepository.signUp(
+        email: widget.email,
+        password: widget.password,
+      );
+      final userId = response.user?.id;
+      if (userId == null) {
+        throw Exception('Signup did not return a user');
+      }
+
       await _repository.upsertStudent(
-        studentId: widget.userId,
+        studentId: userId,
         email: widget.email,
         details: StudentDetails(
           fullName: _fullNameController.text.trim(),
@@ -166,54 +206,31 @@ class _StudentWizardScreenState extends State<StudentWizardScreen> {
           address: _addressController.text.trim(),
         ),
       );
-      return true;
-    } catch (e) {
-      setState(
-        () => _errorMessage = 'Could not save your details. Please try again.',
-      );
-      return false;
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
-    }
-  }
 
-  Future<void> _openAddContactSheet() async {
-    final added = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => AddContactSheet(
-        studentId: widget.userId,
-        repository: _contactRepository,
-      ),
-    );
-    if (added == true) {
-      final contacts = await _contactRepository.fetchForStudent(widget.userId);
-      setState(() {
-        _contacts = contacts;
-        _errorMessage = null;
-      });
-    }
-  }
+      for (final contact in _contacts) {
+        await _contactRepository.addContact(
+          studentId: userId,
+          name: contact['name'] as String,
+          relationship: contact['relationship'] as String,
+          email: contact['email'] as String?,
+          phone: contact['phone'] as String?,
+        );
+      }
 
-  Future<void> _finish() async {
-    setState(() {
-      _isSubmitting = true;
-      _errorMessage = null;
-    });
-
-    try {
       if (_vehicleInfoController.text.trim().isNotEmpty ||
           _mobilityNotesController.text.trim().isNotEmpty) {
         await _repository.updateVehicleAndMobility(
-          studentId: widget.userId,
+          studentId: userId,
           vehicleInfo: _vehicleInfoController.text.trim(),
           mobilityNotes: _mobilityNotesController.text.trim(),
         );
       }
+
       _goHome();
     } catch (e) {
       setState(
-        () => _errorMessage = 'Could not save. You can add this later from Profile.',
+        () => _errorMessage =
+            'Could not create your account. Please try again.',
       );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -234,7 +251,11 @@ class _StudentWizardScreenState extends State<StudentWizardScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Cancel account setup?'),
         content: const Text(
-          "You'll need to log in again to pick up where you left off.",
+          // Nothing has been saved yet at this point — no auth account
+          // exists until the review step is confirmed — so this is a
+          // clean discard, not a "resume later" situation.
+          "You haven't been signed up yet, so nothing will be saved. "
+          "You'll need to start over from Create Account.",
         ),
         actions: [
           TextButton(
@@ -250,8 +271,6 @@ class _StudentWizardScreenState extends State<StudentWizardScreen> {
     );
     if (confirmed != true || !mounted) return;
 
-    await SupabaseService.client.auth.signOut();
-    if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const WelcomeScreen()),
       (route) => false,
@@ -327,6 +346,7 @@ class _StudentWizardScreenState extends State<StudentWizardScreen> {
                     _buildAddressStep(),
                     _buildTrustedContactsStep(),
                     _buildVehicleMobilityStep(),
+                    _buildReviewStep(),
                   ],
                 ),
               ),
@@ -354,20 +374,15 @@ class _StudentWizardScreenState extends State<StudentWizardScreen> {
                     ElevatedButton(
                       onPressed: _isSubmitting
                           ? null
-                          : (isLastStep ? _finish : _next),
+                          : (isLastStep ? _confirmAndCreateAccount : _next),
                       child: _isSubmitting
                           ? const SizedBox(
                               width: 22,
                               height: 22,
                               child: CircularProgressIndicator(strokeWidth: 2.4),
                             )
-                          : Text(isLastStep ? 'Finish Setup' : 'Continue'),
+                          : Text(isLastStep ? 'Confirm & Create Account' : 'Continue'),
                     ),
-                    if (isLastStep)
-                      TextButton(
-                        onPressed: _isSubmitting ? null : _goHome,
-                        child: const Text('Skip for now'),
-                      ),
                   ],
                 ),
               ),
@@ -628,8 +643,8 @@ class _StudentWizardScreenState extends State<StudentWizardScreen> {
               ),
             )
           else
-            ..._contacts.map(
-              (contact) => Card(
+            ..._contacts.asMap().entries.map(
+              (entry) => Card(
                 margin: const EdgeInsets.only(bottom: 10),
                 elevation: 0,
                 color: colorScheme.surfaceContainerHigh,
@@ -637,17 +652,12 @@ class _StudentWizardScreenState extends State<StudentWizardScreen> {
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: ListTile(
-                  title: Text(contact['name'] as String? ?? ''),
-                  subtitle: Text(contact['relationship'] as String? ?? ''),
-                  trailing: Chip(
-                    label: Text(
-                      contact['status'] == 'app_linked'
-                          ? 'App linked'
-                          : 'SMS only',
-                    ),
-                    labelStyle: const TextStyle(fontSize: 11),
-                    visualDensity: VisualDensity.compact,
-                    backgroundColor: colorScheme.surfaceContainerHighest,
+                  title: Text(entry.value['name'] as String? ?? ''),
+                  subtitle: Text(entry.value['relationship'] as String? ?? ''),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.close),
+                    tooltip: 'Remove',
+                    onPressed: () => _removeContact(entry.key),
                   ),
                 ),
               ),
@@ -695,6 +705,127 @@ class _StudentWizardScreenState extends State<StudentWizardScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildReviewStep() {
+    final colorScheme = Theme.of(context).colorScheme;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Review & confirm', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          Text(
+            'Nothing has been saved yet — check everything below, then '
+            'confirm to create your account.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 20),
+          _ReviewSection(title: 'Account', rows: {'Email': widget.email}),
+          _ReviewSection(
+            title: 'About you',
+            rows: {
+              'Full name': _fullNameController.text.trim(),
+              'Cellphone': _phoneController.text.trim(),
+            },
+          ),
+          _ReviewSection(
+            title: 'Personal details',
+            rows: {
+              'Date of birth': _dob == null
+                  ? '—'
+                  : DateFormat('d MMMM yyyy').format(_dob!),
+              'Gender': _gender ?? '—',
+              'Faculty': _selectedFaculty ?? '—',
+              'Year of study': _selectedYear ?? '—',
+              'Residence type': _residenceType ?? '—',
+            },
+          ),
+          _ReviewSection(
+            title: 'Address',
+            rows: {'Residential address': _addressController.text.trim()},
+          ),
+          _ReviewSection(
+            title: 'Trusted contacts (${_contacts.length})',
+            rows: {
+              for (final c in _contacts)
+                (c['name'] as String? ?? ''): (c['relationship'] as String? ?? ''),
+            },
+          ),
+          if (_vehicleInfoController.text.trim().isNotEmpty ||
+              _mobilityNotesController.text.trim().isNotEmpty)
+            _ReviewSection(
+              title: 'Vehicle & mobility',
+              rows: {
+                if (_vehicleInfoController.text.trim().isNotEmpty)
+                  'Vehicle': _vehicleInfoController.text.trim(),
+                if (_mobilityNotesController.text.trim().isNotEmpty)
+                  'Mobility notes': _mobilityNotesController.text.trim(),
+              },
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReviewSection extends StatelessWidget {
+  const _ReviewSection({required this.title, required this.rows});
+
+  final String title;
+  final Map<String, String> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            for (final entry in rows.entries)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 130,
+                      child: Text(
+                        entry.key,
+                        style: TextStyle(color: colorScheme.onSurfaceVariant),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        entry.value.isEmpty ? '—' : entry.value,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

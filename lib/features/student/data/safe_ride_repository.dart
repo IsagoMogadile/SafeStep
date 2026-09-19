@@ -14,7 +14,7 @@ class SafeRideRepository {
   final SupabaseClient _client;
 
   String normalizePlate(String raw) =>
-      raw.trim().toUpperCase().replaceAll(RegExp(r'\s+'), ' ');
+      raw.trim().toUpperCase().replaceAll(RegExp(r'\s+'), '');
 
   /// Null means no record at all for this plate — not the same as "clean
   /// record" (which is a real record with zero/minor offenses only).

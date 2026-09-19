@@ -49,11 +49,41 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     final email = _emailController.text.trim();
 
     try {
+      final status = await _authRepository.checkEmailStatus(email);
+
+      if (status == 'active') {
+        setState(
+          () => _errorMessage =
+              'An account with this email already exists — please log in instead.',
+        );
+        return;
+      }
+
+      if (status == 'none') {
+        // Brand-new student: don't create the auth account yet — collect
+        // the full profile first (wizard ends on a review screen), and
+        // only call signUp() once they confirm. This is what actually
+        // prevents an abandoned signup from leaving behind a permanent,
+        // half-finished auth account that then blocks a retry.
+        if (!mounted) return;
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => StudentWizardScreen(
+              email: email,
+              password: _passwordController.text,
+            ),
+          ),
+        );
+        return;
+      }
+
+      // status == 'invited': a responder/admin invite is waiting. This is
+      // a single-screen self-activation, not a multi-step wizard, so
+      // there's no abandonment risk in creating the account immediately.
       final response = await _authRepository.signUp(
         email: email,
         password: _passwordController.text,
       );
-
       final userId = response.user?.id;
       if (userId == null) {
         throw const AuthException(
@@ -65,30 +95,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         userId: userId,
         email: email,
       );
-
-      if (!mounted) return;
-
-      if (invite == null) {
-        // No pending responder/admin invite for this email — brand-new
-        // student, continue to the details wizard. Say so explicitly so
-        // it's clear why (e.g. a responder invite email was mistyped).
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'No admin invite found for this email — setting up a new '
-              'student account.',
-            ),
-            duration: Duration(seconds: 3),
-          ),
-        );
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (_) => StudentWizardScreen(userId: userId, email: email),
-          ),
-          (route) => false,
-        );
-        return;
-      }
+      if (!mounted || invite == null) return;
 
       final destination = switch (invite.role) {
         AppRole.responder => const ResponderHomeShell(),

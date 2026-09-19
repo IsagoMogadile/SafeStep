@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -22,11 +24,11 @@ class GroupDetailScreen extends StatefulWidget {
 class _GroupDetailScreenState extends State<GroupDetailScreen>
     with SingleTickerProviderStateMixin {
   final _repository = GroupRepository();
-  final _messagesScrollController = ScrollController();
   late final TabController _tabController;
   late Future<Map<String, dynamic>> _groupFuture;
   late Future<List<Map<String, dynamic>>> _membersFuture;
   late Future<List<Map<String, dynamic>>> _messagesFuture;
+  Timer? _messagesPoller;
   bool _isMember = false;
   bool _isBusy = false;
 
@@ -38,32 +40,21 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     _tabController = TabController(length: 2, vsync: this);
     _groupFuture = _repository.fetchGroup(widget.groupId);
     _membersFuture = _repository.fetchMembers(widget.groupId);
-    _messagesFuture = _repository.fetchMessages(widget.groupId)
-      ..then((_) => _scrollToBottom());
+    _messagesFuture = _repository.fetchMessages(widget.groupId);
     _checkMembership();
+    // Polls for messages other members send, matching this app's
+    // existing pattern (companion invites, alert status) rather than a
+    // new realtime mechanism.
+    _messagesPoller = Timer.periodic(const Duration(seconds: 8), (_) {
+      if (mounted) setState(() => _messagesFuture = _repository.fetchMessages(widget.groupId));
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
-    _messagesScrollController.dispose();
+    _messagesPoller?.cancel();
     super.dispose();
-  }
-
-  /// Messages are already fetched oldest-first (`created_at` ascending),
-  /// so the newest message is the *last* item in a normal top-to-bottom
-  /// ListView — the sort order was never the problem. What was missing
-  /// is scrolling there automatically: without this, opening the screen
-  /// (or sending a new message) left you looking at the oldest messages
-  /// with the newest one off-screen below, which reads as "wrong order"
-  /// even though the underlying data isn't.
-  void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_messagesScrollController.hasClients) return;
-      _messagesScrollController.jumpTo(
-        _messagesScrollController.position.maxScrollExtent,
-      );
-    });
   }
 
   Future<void> _checkMembership() async {
@@ -123,8 +114,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
         presetKey: key,
       );
       setState(() {
-        _messagesFuture = _repository.fetchMessages(widget.groupId)
-          ..then((_) => _scrollToBottom());
+        _messagesFuture = _repository.fetchMessages(widget.groupId);
       });
     } catch (e) {
       if (mounted) {
@@ -239,12 +229,17 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                   ),
                 );
               }
+              // WhatsApp-style: reversed ListView with a reversed data
+              // list, so index 0 (the newest message) renders at the
+              // bottom and stays pinned there as new ones arrive — no
+              // scroll-position bookkeeping needed.
+              final reversedMessages = messages.reversed.toList();
               return ListView.builder(
-                controller: _messagesScrollController,
+                reverse: true,
                 padding: const EdgeInsets.all(16),
-                itemCount: messages.length,
+                itemCount: reversedMessages.length,
                 itemBuilder: (context, index) {
-                  final message = messages[index];
+                  final message = reversedMessages[index];
                   final isMe = message['student_id'] == _userId;
                   final name =
                       (message['students'] as Map<String, dynamic>?)?['full_name']
