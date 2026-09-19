@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../../../../core/location/location_service.dart';
-import '../../../../core/location/route_service.dart';
 import '../../../../core/supabase/supabase_service.dart';
 import '../../../../core/widgets/skeleton_loader.dart';
 import '../../data/walk_session_repository.dart';
-import 'companion_meeting_screen.dart';
+import 'companion_start_location_screen.dart';
 import 'widgets/route_map_view.dart';
 
 /// The companion's side of "Invite a companion" (scope.md §5: "they must
@@ -38,61 +36,19 @@ class _CompanionInvitesScreenState extends State<CompanionInvitesScreen> {
     });
   }
 
-  /// Accepting asks the companion for their own location, so a meeting
-  /// point roughly midway between them and the walker can be computed —
-  /// the companion walks there first rather than just watching the
-  /// walker go straight to the destination.
-  Future<void> _accept(String sessionId, Map<String, dynamic> invite) async {
-    final companionPosition = await LocationService.getCurrentLocation();
+  /// Accepting just records the acceptance — the companion is then asked
+  /// for their own starting point on [CompanionStartLocationScreen], so a
+  /// meeting point roughly midway between both starting points can be
+  /// computed before they walk there together.
+  Future<void> _accept(String sessionId) async {
+    await _repository.acceptCompanionInvite(sessionId);
     if (!mounted) return;
-    if (companionPosition == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            "We couldn't get your location, so a meeting point can't be planned. "
-            "You'll still be able to watch their journey.",
-          ),
-        ),
-      );
-    }
-
-    LatLng? meetingPoint;
-    if (companionPosition != null) {
-      final walkerLat = (invite['current_lat'] ?? invite['start_lat']) as num?;
-      final walkerLng = (invite['current_lng'] ?? invite['start_lng']) as num?;
-      if (walkerLat != null && walkerLng != null) {
-        final walkerPoint = LatLng(walkerLat.toDouble(), walkerLng.toDouble());
-        final companionPoint = LatLng(companionPosition.latitude, companionPosition.longitude);
-        if (RouteService.distanceMeters(walkerPoint, companionPoint) <=
-            RouteService.maxMeetingPointDistanceMeters) {
-          meetingPoint = RouteService.midpoint(walkerPoint, companionPoint);
-        } else if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                "You and your friend are too far apart for a shared meeting point — "
-                "you'll watch their journey straight to the destination instead.",
-              ),
-            ),
-          );
-        }
-      }
-    }
-
-    await _repository.acceptCompanionInvite(
-      sessionId,
-      companionLat: companionPosition?.latitude,
-      companionLng: companionPosition?.longitude,
-      meetingLat: meetingPoint?.latitude,
-      meetingLng: meetingPoint?.longitude,
-    );
-    if (!mounted) return;
-    // Straight into the live map rather than just a snackbar — that's
-    // the whole point of accepting.
     final session = await _repository.fetchSession(sessionId);
     if (mounted) {
       await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => companionTrackingScreenFor(session)),
+        MaterialPageRoute(
+          builder: (_) => CompanionStartLocationScreen(session: session),
+        ),
       );
     }
     _refresh();
@@ -129,8 +85,7 @@ class _CompanionInvitesScreenState extends State<CompanionInvitesScreen> {
               itemCount: invites.length,
               itemBuilder: (context, index) => _InviteCard(
                 invite: invites[index],
-                onAccept: () =>
-                    _accept(invites[index]['session_id'] as String, invites[index]),
+                onAccept: () => _accept(invites[index]['session_id'] as String),
               ),
             );
           },

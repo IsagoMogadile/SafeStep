@@ -36,6 +36,8 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
 
   bool get _isTimerMode => _session['mode'] == 'self_monitored';
   bool get _companionAccepted => _session['companion_accepted_at'] != null;
+  bool get _companionHasStartLocation =>
+      _session['companion_lat'] != null && _session['companion_lng'] != null;
   bool get _hasMonitors =>
       (_session['monitor_contact_ids'] as List?)?.isNotEmpty == true;
   bool get _hasMeetingPoint =>
@@ -77,7 +79,7 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
         const Duration(seconds: 20),
         (_) => _pushLocation(),
       );
-      if (!_companionAccepted || _needsMeetingPointFirst) {
+      if (!_companionAccepted || !_companionHasStartLocation || _needsMeetingPointFirst) {
         // No realtime subscriptions exist anywhere in this app yet — a
         // short poll is the simplest correct way to notice the companion
         // accepting (scope.md §5: "they must accept before the journey
@@ -95,7 +97,7 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
     final fresh = await _repository.fetchSession(_session['session_id'] as String);
     if (!mounted) return;
     setState(() => _session = fresh);
-    if (_companionAccepted && !_needsMeetingPointFirst) {
+    if (_companionAccepted && _companionHasStartLocation && !_needsMeetingPointFirst) {
       _acceptancePollTimer?.cancel();
     }
   }
@@ -387,6 +389,9 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
                             child: Text(
                               !_companionAccepted
                                   ? 'Waiting for your companion to accept the invite…'
+                                  : !_companionHasStartLocation
+                                  ? 'Your companion accepted — waiting for them to add '
+                                        'their starting point…'
                                   : _needsMeetingPointFirst
                                   ? (_walkerReachedMeeting
                                         ? "You're at the meeting point — waiting for your "

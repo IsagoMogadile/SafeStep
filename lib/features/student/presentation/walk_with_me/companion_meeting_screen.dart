@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../../core/location/location_service.dart';
 import '../../../../core/location/route_service.dart';
 import '../../data/walk_session_repository.dart';
+import 'companion_start_location_screen.dart';
 import 'monitor_tracking_screen.dart';
 import 'widgets/journey_tracking_map.dart';
 
@@ -34,6 +35,7 @@ class _CompanionMeetingScreenState extends State<CompanionMeetingScreen> {
   LatLng? _companionPosition;
   bool _companionReached = false;
   bool _handedOff = false;
+  bool _confirmingArrival = false;
 
   @override
   void initState() {
@@ -76,6 +78,23 @@ class _CompanionMeetingScreenState extends State<CompanionMeetingScreen> {
       _companionReached = true;
       await _repository.markCompanionReachedMeeting(sessionId);
     }
+    _checkHandoff();
+  }
+
+  /// Lets the companion confirm arrival themselves instead of relying only
+  /// on the automatic GPS-proximity check — useful when a phone's fix
+  /// drifts just outside [RouteService.meetingArrivalRadiusMeters] even
+  /// though they're actually there.
+  Future<void> _confirmArrivedManually() async {
+    if (_companionReached || _confirmingArrival) return;
+    setState(() => _confirmingArrival = true);
+    final sessionId = _session['session_id'] as String;
+    await _repository.markCompanionReachedMeeting(sessionId);
+    if (!mounted) return;
+    setState(() {
+      _companionReached = true;
+      _confirmingArrival = false;
+    });
     _checkHandoff();
   }
 
@@ -182,6 +201,20 @@ class _CompanionMeetingScreenState extends State<CompanionMeetingScreen> {
                     ],
                   ),
                 ),
+                if (!_companionReached) ...[
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: _confirmingArrival ? null : _confirmArrivedManually,
+                    icon: _confirmingArrival
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2.4),
+                          )
+                        : const Icon(Icons.handshake_outlined),
+                    label: const Text('Arrived at Meeting Point'),
+                  ),
+                ],
               ],
             ),
           ),
@@ -192,10 +225,15 @@ class _CompanionMeetingScreenState extends State<CompanionMeetingScreen> {
 }
 
 /// Routes into the right screen for a companion re-opening an
-/// `invite_companion` session — [CompanionMeetingScreen] if a meeting
-/// point still needs to be reached by either side, otherwise straight
-/// into the normal destination tracking.
+/// `invite_companion` session — [CompanionStartLocationScreen] if they
+/// haven't entered their own starting point yet, [CompanionMeetingScreen]
+/// if a meeting point still needs to be reached by either side, otherwise
+/// straight into the normal destination tracking.
 Widget companionTrackingScreenFor(Map<String, dynamic> session) {
+  final hasCompanionStart = session['companion_lat'] != null && session['companion_lng'] != null;
+  if (!hasCompanionStart) {
+    return CompanionStartLocationScreen(session: session);
+  }
   final hasMeetingPoint = session['meeting_lat'] != null && session['meeting_lng'] != null;
   final bothAtMeetingPoint =
       session['walker_reached_meeting_at'] != null &&

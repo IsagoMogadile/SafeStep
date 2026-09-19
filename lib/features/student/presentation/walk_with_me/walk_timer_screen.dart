@@ -131,7 +131,7 @@ class _WalkTimerScreenState extends State<WalkTimerScreen> {
   Future<void> _pickDestinationOnMap() async {
     final picked = await pickDestinationOnMap(context);
     if (picked != null && mounted) {
-      setState(() => _destinationController.text = picked);
+      setState(() => _destinationController.text = picked.label);
     }
   }
 
