@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Compact layout — used when the widget's been resized down small (see
+  SosWidgetProvider.updateWidget), where a title + subtitle would just
+  get clipped or squeezed unreadable. A single large icon stays
+  recognizable and, more importantly, keeps the *entire* tile as one big
+  tap target even at a small footprint — the priority in a rushed,
+  imprecise-tapping situation is never missing the button, not reading
+  a label.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/sos_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/sos_widget_background">
+
+    <ImageView
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_gravity="center"
+        android:src="@android:drawable/ic_dialog_alert"
+        android:tint="#FFFFFF"
+        android:contentDescription="@string/sos_widget_description" />
+
+</FrameLayout>

@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
 import '../domain/app_role.dart';
+import 'role_cache.dart';
 
 /// Result of checking whether a freshly-created auth account matches a
 /// pending responder/admin invite (scope.md §4).
@@ -117,33 +118,63 @@ class AuthRepository {
   /// without creating a new session, so claimPendingInvite there runs
   /// unauthenticated and RLS correctly (silently) blocks it. A real,
   /// authenticated login is the reliable place to complete that link.
+  ///
+  /// A network failure (e.g. offline) is deliberately *not* treated the
+  /// same as the server genuinely returning no matching row — the former
+  /// falls back to [RoleCache]'s last confirmed answer for this user (so
+  /// a returning student still reaches Home with no connection), the
+  /// latter is a real "this account was never finished" state. Silently
+  /// collapsing both into `null` was the actual cause of an offline login
+  /// showing "account setup was never finished" for a perfectly normal,
+  /// already-set-up account.
   Future<AppRole?> resolveRole(String userId, {String? email}) async {
-    final student = await _client
-        .from('students')
-        .select('student_id')
-        .eq('student_id', userId)
-        .maybeSingle();
-    if (student != null) return AppRole.student;
+    try {
+      final student = await _client
+          .from('students')
+          .select('student_id')
+          .eq('student_id', userId)
+          .maybeSingle();
+      if (student != null) {
+        await RoleCache.save(userId, AppRole.student);
+        return AppRole.student;
+      }
 
-    final responder = await _client
-        .from('responders')
-        .select('responder_id')
-        .eq('user_id', userId)
-        .maybeSingle();
-    if (responder != null) return AppRole.responder;
+      final responder = await _client
+          .from('responders')
+          .select('responder_id')
+          .eq('user_id', userId)
+          .maybeSingle();
+      if (responder != null) {
+        await RoleCache.save(userId, AppRole.responder);
+        return AppRole.responder;
+      }
 
-    final admin = await _client
-        .from('admins')
-        .select('admin_id')
-        .eq('user_id', userId)
-        .maybeSingle();
-    if (admin != null) return AppRole.admin;
+      final admin = await _client
+          .from('admins')
+          .select('admin_id')
+          .eq('user_id', userId)
+          .maybeSingle();
+      if (admin != null) {
+        await RoleCache.save(userId, AppRole.admin);
+        return AppRole.admin;
+      }
 
-    if (email != null) {
-      final invite = await claimPendingInvite(userId: userId, email: email);
-      if (invite != null) return invite.role;
+      if (email != null) {
+        final invite = await claimPendingInvite(userId: userId, email: email);
+        if (invite != null) {
+          await RoleCache.save(userId, invite.role);
+          return invite.role;
+        }
+      }
+
+      // The server was reachable and genuinely has no row for this user
+      // anywhere — a real incomplete-account state, not a connectivity
+      // problem, so any stale cached role no longer applies.
+      return null;
+    } catch (e) {
+      final cached = await RoleCache.load(userId);
+      if (cached != null) return cached;
+      rethrow;
     }
-
-    return null;
   }
 }

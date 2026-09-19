@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 
+import '../../../../core/connectivity/connectivity_service.dart';
+import '../../../../core/offline/pending_report_queue.dart';
 import '../../../../core/storage/storage_uploader.dart';
 import '../../../../core/supabase/supabase_service.dart';
 import 'report_success_screen.dart';
@@ -46,6 +48,31 @@ class _ReportStep2ScreenState extends State<ReportStep2Screen> {
 
     try {
       final userId = SupabaseService.client.auth.currentUser!.id;
+      final online = await ConnectivityService.hasConnection();
+
+      if (!online) {
+        // No connection: save everything locally (including the photo's
+        // file path — the upload itself happens later) as Pending Sync,
+        // rather than attempting a network call that would just fail.
+        await PendingReportQueue.add(
+          studentId: userId,
+          category: widget.category,
+          locationText: widget.locationText,
+          lat: widget.lat,
+          lng: widget.lng,
+          description: widget.description,
+          anonymous: widget.anonymous,
+          followUpRequested: widget.followUpRequested,
+          photoPath: widget.photo?.path,
+          createdAt: DateTime.now(),
+        );
+        HapticFeedback.mediumImpact();
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const ReportSuccessScreen(queuedOffline: true)),
+        );
+        return;
+      }
 
       String? photoUrl;
       if (widget.photo != null) {

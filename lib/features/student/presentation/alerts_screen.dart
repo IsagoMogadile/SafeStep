@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../../../core/widgets/skeleton_loader.dart';
+import '../../../core/widgets/staleness_banner.dart';
+import '../data/alerts_cache.dart';
 import '../data/safe_ride_repository.dart';
 
 /// Safety broadcasts (admin-created, distinct from panic alerts — scope.md
@@ -17,11 +19,26 @@ class AlertsScreen extends StatefulWidget {
 
 class _AlertsScreenState extends State<AlertsScreen> {
   late Future<List<Map<String, dynamic>>> _alertsFuture;
+  bool _isStale = false;
+  DateTime? _cachedAt;
 
   @override
   void initState() {
     super.initState();
-    _alertsFuture = _fetchAlerts();
+    _alertsFuture = _loadAlerts();
+  }
+
+  Future<List<Map<String, dynamic>>> _loadAlerts() async {
+    try {
+      final combined = await _fetchAlerts();
+      await AlertsCache.save(combined);
+      return combined;
+    } catch (_) {
+      final (cached, cachedAt) = await AlertsCache.load();
+      if (cached.isEmpty) rethrow; // nothing to fall back to — show the real error
+      if (mounted) setState(() { _isStale = true; _cachedAt = cachedAt; });
+      return cached;
+    }
   }
 
   static const _statusLabels = {
@@ -93,7 +110,10 @@ class _AlertsScreenState extends State<AlertsScreen> {
   }
 
   Future<void> _refresh() async {
-    setState(() { _alertsFuture = _fetchAlerts(); });
+    setState(() {
+      _isStale = false;
+      _alertsFuture = _loadAlerts();
+    });
   }
 
   (Color, IconData) _styleFor(String? level) {
@@ -110,7 +130,11 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Safety Alerts')),
-      body: RefreshIndicator(
+      body: Column(
+        children: [
+          if (_isStale) StalenessBanner(lastUpdated: _cachedAt),
+          Expanded(
+            child: RefreshIndicator(
         onRefresh: _refresh,
         child: FutureBuilder<List<Map<String, dynamic>>>(
           future: _alertsFuture,
@@ -198,6 +222,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
             );
           },
         ),
+      ),
+          ),
+        ],
       ),
     );
   }

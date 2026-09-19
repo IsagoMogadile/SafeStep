@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show CountOption;
 
+import '../../../core/connectivity/connectivity_controller.dart';
+import '../../../core/offline/sync_manager.dart';
 import '../../../core/supabase/supabase_service.dart';
+import '../../../core/widgets/online_only_gate.dart';
 import '../../auth/data/auth_repository.dart';
 import '../data/alert_status_poller.dart';
 import '../data/alerts_seen_prefs.dart';
@@ -68,6 +71,18 @@ class _StudentHomeShellState extends State<StudentHomeShell> {
         onChange: _refreshMonitoredJourneysBadge,
       )..start();
     }
+    // Replay anything queued from a previous offline session the moment
+    // this screen loads (in case the app was closed and reopened already
+    // back online), and again every time connectivity flips back on
+    // while the app is open.
+    SyncManager.instance.syncAll();
+    ConnectivityController.instance.addListener(_onConnectivityChanged);
+  }
+
+  void _onConnectivityChanged() {
+    if (ConnectivityController.instance.isOnline) {
+      SyncManager.instance.syncAll();
+    }
   }
 
   @override
@@ -76,6 +91,7 @@ class _StudentHomeShellState extends State<StudentHomeShell> {
     _alertStatusPoller?.stop();
     _safeRideReportPoller?.stop();
     _monitoredJourneyPoller?.stop();
+    ConnectivityController.instance.removeListener(_onConnectivityChanged);
     super.dispose();
   }
 
@@ -103,8 +119,12 @@ class _StudentHomeShellState extends State<StudentHomeShell> {
   }
 
   Future<void> _openCompanionInvites() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const CompanionInvitesScreen()),
+    await runIfOnline(
+      context,
+      featureName: 'Companion invites',
+      action: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const CompanionInvitesScreen()),
+      ),
     );
     if (mounted) {
       setState(() { _pendingInvitesFuture = _fetchPendingInviteCount(); });
@@ -125,8 +145,12 @@ class _StudentHomeShellState extends State<StudentHomeShell> {
   }
 
   Future<void> _openMonitoredJourneys() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const MonitoredJourneysScreen()),
+    await runIfOnline(
+      context,
+      featureName: 'Journey tracking',
+      action: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const MonitoredJourneysScreen()),
+      ),
     );
     if (mounted) {
       setState(() { _monitoredJourneysFuture = _fetchMonitoredJourneyCount(); });

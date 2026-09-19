@@ -95,7 +95,7 @@ class _RoleResolver extends StatefulWidget {
 }
 
 class _RoleResolverState extends State<_RoleResolver> {
-  late final Future<AppRole?> _roleFuture;
+  late Future<AppRole?> _roleFuture;
 
   @override
   void initState() {
@@ -106,6 +106,15 @@ class _RoleResolverState extends State<_RoleResolver> {
     );
   }
 
+  void _retry() {
+    setState(() {
+      _roleFuture = widget.authRepository.resolveRole(
+        widget.userId,
+        email: widget.email,
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<AppRole?>(
@@ -114,6 +123,46 @@ class _RoleResolverState extends State<_RoleResolver> {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        // Only reached when resolveRole couldn't reach the server *and*
+        // this device has never confirmed a role for this account before
+        // (RoleCache empty) — a real "can't verify, not 'never finished'"
+        // state, distinct from IncompleteAccountScreen below.
+        if (snapshot.hasError) {
+          return Scaffold(
+            body: SafeArea(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.wifi_off_rounded,
+                        size: 40,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        "Couldn't verify your account",
+                        style: Theme.of(context).textTheme.titleLarge,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'This device needs to connect at least once to sign you in. '
+                        'Check your connection and try again.',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(onPressed: _retry, child: const Text('Try Again')),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           );
         }
 

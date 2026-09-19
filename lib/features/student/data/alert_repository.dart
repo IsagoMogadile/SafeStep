@@ -35,37 +35,46 @@ class AlertRepository {
   /// if the student is already banned, or if this attempt just triggered
   /// a fresh 1-hour ban.
   Future<DateTime?> checkSosGate(String studentId) async {
-    final student = await _client
-        .from('students')
-        .select('sos_banned_until')
-        .eq('student_id', studentId)
-        .single();
-
-    final bannedUntilRaw = student['sos_banned_until'] as String?;
-    if (bannedUntilRaw != null) {
-      final bannedUntil = DateTime.parse(bannedUntilRaw);
-      if (bannedUntil.isAfter(DateTime.now())) return bannedUntil;
-    }
-
-    final tenMinutesAgo = DateTime.now().subtract(const Duration(minutes: 10));
-    final recent = await _client
-        .from('alerts')
-        .select('alert_id')
-        .eq('student_id', studentId)
-        .eq('alert_type', 'panic')
-        .gte('triggered_at', tenMinutesAgo.toIso8601String())
-        .count(CountOption.exact);
-
-    if (recent.count >= 3) {
-      final until = DateTime.now().add(const Duration(hours: 1));
-      await _client
+    try {
+      final student = await _client
           .from('students')
-          .update({'sos_banned_until': until.toIso8601String()})
-          .eq('student_id', studentId);
-      return until;
-    }
+          .select('sos_banned_until')
+          .eq('student_id', studentId)
+          .single();
 
-    return null;
+      final bannedUntilRaw = student['sos_banned_until'] as String?;
+      if (bannedUntilRaw != null) {
+        final bannedUntil = DateTime.parse(bannedUntilRaw);
+        if (bannedUntil.isAfter(DateTime.now())) return bannedUntil;
+      }
+
+      final tenMinutesAgo = DateTime.now().subtract(const Duration(minutes: 10));
+      final recent = await _client
+          .from('alerts')
+          .select('alert_id')
+          .eq('student_id', studentId)
+          .eq('alert_type', 'panic')
+          .gte('triggered_at', tenMinutesAgo.toIso8601String())
+          .count(CountOption.exact);
+
+      if (recent.count >= 3) {
+        final until = DateTime.now().add(const Duration(hours: 1));
+        await _client
+            .from('students')
+            .update({'sos_banned_until': until.toIso8601String()})
+            .eq('student_id', studentId);
+        return until;
+      }
+
+      return null;
+    } catch (_) {
+      // Fails open, same as the zone-matching fallback below: with no
+      // connection this query can't even run, and a hold that silently
+      // does nothing (rather than falling through to the offline
+      // phone-call fallback) would be far worse than skipping the
+      // misuse gate for one offline attempt.
+      return null;
+    }
   }
 
   /// Creates the alert, then fans it out to every zone-assigned, active,
@@ -76,17 +85,30 @@ class AlertRepository {
   Future<Map<String, dynamic>> createAlert({
     required String studentId,
     required String alertType,
+    // Set by SyncManager when replaying a PendingAlertQueue entry — the
+    // location/time actually captured at the moment of the offline
+    // trigger, not a fresh (and by then misleading) fix taken at
+    // reconnect time.
+    double? overrideLat,
+    double? overrideLng,
+    String? overrideTriggeredAtIso,
   }) async {
-    // Best-effort — a slow or denied location fix should never block
-    // sending the alert itself.
-    final position = await LocationService.getCurrentLocation();
+    double? lat = overrideLat;
+    double? lng = overrideLng;
+    if (lat == null || lng == null) {
+      // Best-effort — a slow or denied location fix should never block
+      // sending the alert itself.
+      final position = await LocationService.getCurrentLocation();
+      lat = position?.latitude;
+      lng = position?.longitude;
+    }
 
     String? zoneId;
-    if (position != null) {
+    if (lat != null && lng != null) {
       zoneId = await ZoneLookupService.findNearestZoneId(
         client: _client,
-        lat: position.latitude,
-        lng: position.longitude,
+        lat: lat,
+        lng: lng,
       );
     }
 
@@ -97,13 +119,13 @@ class AlertRepository {
           'alert_type': alertType,
           'status': 'new',
           'zone_id': zoneId,
-          'lat': position?.latitude,
-          'lng': position?.longitude,
+          'lat': lat,
+          'lng': lng,
           // .toUtc() matters: the DB session timezone is UTC, and treats
           // an offset-less timestamp as already being UTC — without this,
           // a local (non-UTC) DateTime silently gets stored hours off by
           // the device's own UTC offset.
-          'triggered_at': DateTime.now().toUtc().toIso8601String(),
+          'triggered_at': overrideTriggeredAtIso ?? DateTime.now().toUtc().toIso8601String(),
         })
         .select()
         .single();

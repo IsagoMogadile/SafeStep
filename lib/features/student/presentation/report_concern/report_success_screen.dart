@@ -4,7 +4,12 @@ import '../../../../core/theme/app_theme.dart';
 import '../safety_resources_screen.dart';
 
 class ReportSuccessScreen extends StatelessWidget {
-  const ReportSuccessScreen({super.key});
+  const ReportSuccessScreen({super.key, this.queuedOffline = false});
+
+  /// True when this report was saved locally (no connection at submit
+  /// time) rather than actually sent yet — see `report_step2_screen.dart`
+  /// and `SyncManager`.
+  final bool queuedOffline;
 
   @override
   Widget build(BuildContext context) {
@@ -31,12 +36,15 @@ class ReportSuccessScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  'Thank you for reporting',
+                  queuedOffline ? 'Report saved — Pending Sync' : 'Thank you for reporting',
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "Here's what to do if you're still feeling unsafe.",
+                  queuedOffline
+                      ? "You're offline — this report is saved on your phone and "
+                            'will be sent automatically once you reconnect.'
+                      : "Here's what to do if you're still feeling unsafe.",
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,

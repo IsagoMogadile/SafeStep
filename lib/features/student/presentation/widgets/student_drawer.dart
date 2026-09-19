@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../auth/presentation/welcome_screen.dart';
 import '../../../../core/supabase/supabase_service.dart';
 import '../../../../core/widgets/confirm_logout.dart';
+import '../../../../core/widgets/online_only_gate.dart';
 import '../groups_home_screen.dart';
 import '../my_reports_screen.dart';
 import '../privacy_notice_screen.dart';
@@ -39,6 +40,15 @@ class StudentDrawer extends StatelessWidget {
   void _navigate(BuildContext context, Widget screen) {
     Navigator.of(context).pop();
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+  }
+
+  void _navigateIfOnline(BuildContext context, String featureName, Widget screen) {
+    Navigator.of(context).pop();
+    runIfOnline(
+      context,
+      featureName: featureName,
+      action: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen)),
+    );
   }
 
   @override
@@ -86,16 +96,24 @@ class StudentDrawer extends StatelessWidget {
                     onTap: () =>
                         _navigate(context, const TrustedContactsScreen()),
                   ),
-                  ListTile(
-                    leading: const Icon(Icons.groups_outlined),
-                    title: const Text('Groups'),
-                    onTap: () => _navigate(context, const GroupsHomeScreen()),
+                  OnlineOnlyDimmer(
+                    child: ListTile(
+                      leading: const Icon(Icons.groups_outlined),
+                      title: const Text('Groups'),
+                      onTap: () =>
+                          _navigateIfOnline(context, 'Groups', const GroupsHomeScreen()),
+                    ),
                   ),
-                  ListTile(
-                    leading: const Icon(Icons.directions_walk_outlined),
-                    title: const Text('Companion invites'),
-                    onTap: () =>
-                        _navigate(context, const CompanionInvitesScreen()),
+                  OnlineOnlyDimmer(
+                    child: ListTile(
+                      leading: const Icon(Icons.directions_walk_outlined),
+                      title: const Text('Companion invites'),
+                      onTap: () => _navigateIfOnline(
+                        context,
+                        'Companion invites',
+                        const CompanionInvitesScreen(),
+                      ),
+                    ),
                   ),
                   ListTile(
                     leading: const Icon(Icons.menu_book_outlined),

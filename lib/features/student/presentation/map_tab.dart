@@ -5,6 +5,8 @@ import 'package:latlong2/latlong.dart';
 import '../../../core/location/location_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/supabase/supabase_service.dart';
+import '../../../core/widgets/staleness_banner.dart';
+import '../data/zones_cache.dart';
 import 'qr_scan_screen.dart';
 
 /// Real center of the four NMU Summerstrand campuses — used as the
@@ -32,15 +34,30 @@ class _MapTabState extends State<MapTab> {
   Map<String, dynamic>? _selectedZone;
   LatLng? _myLocation;
   bool _isLocating = false;
+  bool _isStale = false;
+  DateTime? _cachedAt;
 
   @override
   void initState() {
     super.initState();
-    _zonesFuture = SupabaseService.client
-        .from('zones')
-        .select('name, area_type, risk_status, covered_by, lat, lng')
-        .order('area_type')
-        .order('name');
+    _zonesFuture = _loadZones();
+  }
+
+  Future<List<Map<String, dynamic>>> _loadZones() async {
+    try {
+      final rows = await SupabaseService.client
+          .from('zones')
+          .select('name, area_type, risk_status, covered_by, lat, lng')
+          .order('area_type')
+          .order('name');
+      final zones = List<Map<String, dynamic>>.from(rows);
+      await ZonesCache.save(zones);
+      return zones;
+    } catch (_) {
+      final (cached, cachedAt) = await ZonesCache.load();
+      if (mounted) setState(() { _isStale = true; _cachedAt = cachedAt; });
+      return cached;
+    }
   }
 
   Future<void> _goToCurrentLocation() async {
@@ -92,6 +109,16 @@ class _MapTabState extends State<MapTab> {
 
           return Stack(
             children: [
+              if (_isStale)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: SafeArea(
+                    bottom: false,
+                    child: StalenessBanner(lastUpdated: _cachedAt),
+                  ),
+                ),
               FlutterMap(
                 mapController: _mapController,
                 options: MapOptions(

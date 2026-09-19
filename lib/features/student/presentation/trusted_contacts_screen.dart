@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/connectivity/connectivity_service.dart';
+import '../../../core/offline/pending_contact_queue.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../../auth/data/trusted_contact_repository.dart';
@@ -18,6 +20,7 @@ class TrustedContactsScreen extends StatefulWidget {
 class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
   final _repository = TrustedContactRepository();
   late Future<List<Map<String, dynamic>>> _contactsFuture;
+  late Future<List<Map<String, dynamic>>> _pendingFuture;
 
   String get _userId => SupabaseService.client.auth.currentUser!.id;
 
@@ -25,10 +28,14 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
   void initState() {
     super.initState();
     _contactsFuture = _repository.fetchForStudent(_userId);
+    _pendingFuture = PendingContactQueue.loadAll();
   }
 
   void _refresh() {
-    setState(() { _contactsFuture = _repository.fetchForStudent(_userId); });
+    setState(() {
+      _contactsFuture = _repository.fetchForStudent(_userId);
+      _pendingFuture = PendingContactQueue.loadAll();
+    });
   }
 
   Future<void> _addContact() async {
@@ -42,6 +49,14 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
   }
 
   Future<void> _editContact(Map<String, dynamic> contact) async {
+    if (!await ConnectivityService.hasConnection()) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Editing a contact requires an internet connection.')),
+      );
+      return;
+    }
+    if (!mounted) return;
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -55,6 +70,13 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
   }
 
   Future<void> _removeContact(Map<String, dynamic> contact) async {
+    if (!await ConnectivityService.hasConnection()) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Removing a contact requires an internet connection.')),
+      );
+      return;
+    }
     final name = contact['name'] as String? ?? 'this contact';
     await _repository.removeContact(contact['contact_id'] as String);
     _refresh();
@@ -73,19 +95,26 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
     );
   }
 
+  Future<void> _removePendingContact(String localId) async {
+    await PendingContactQueue.removeById(localId);
+    _refresh();
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Trusted Contacts')),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _contactsFuture,
+      body: FutureBuilder<List<List<Map<String, dynamic>>>>(
+        future: Future.wait([_contactsFuture, _pendingFuture]),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const SkeletonList();
           }
-          final contacts = snapshot.data!;
+          final contacts = snapshot.data![0];
+          final pending = snapshot.data![1];
+          final total = contacts.length + pending.length;
           return Column(
             children: [
               Padding(
@@ -93,8 +122,8 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    '${contacts.length} of $_maxContacts added'
-                    '${contacts.length < _minContacts ? ' · add at least $_minContacts' : ''}',
+                    '$total of $_maxContacts added'
+                    '${total < _minContacts ? ' · add at least $_minContacts' : ''}',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -102,7 +131,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                 ),
               ),
               Expanded(
-                child: contacts.isEmpty
+                child: contacts.isEmpty && pending.isEmpty
                     ? Center(
                         child: Padding(
                           padding: const EdgeInsets.all(32),
@@ -133,8 +162,40 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                       )
                     : ListView.builder(
                         padding: const EdgeInsets.all(20),
-                        itemCount: contacts.length,
+                        itemCount: contacts.length + pending.length,
                         itemBuilder: (context, index) {
+                          if (index >= contacts.length) {
+                            final queued = pending[index - contacts.length];
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              elevation: 0,
+                              color: colorScheme.surfaceContainerHigh,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: ListTile(
+                                title: Text(queued['name'] as String? ?? ''),
+                                subtitle: Text(queued['relationship'] as String? ?? ''),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Chip(
+                                      label: const Text('Pending Sync'),
+                                      labelStyle: const TextStyle(fontSize: 11),
+                                      visualDensity: VisualDensity.compact,
+                                      backgroundColor: colorScheme.tertiaryContainer,
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.close, size: 18),
+                                      tooltip: 'Remove',
+                                      onPressed: () =>
+                                          _removePendingContact(queued['local_id'] as String),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }
                           final contact = contacts[index];
                           final linked = contact['status'] == 'app_linked';
                           return Card(
@@ -181,7 +242,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: ElevatedButton.icon(
-                  onPressed: contacts.length >= _maxContacts ? null : _addContact,
+                  onPressed: total >= _maxContacts ? null : _addContact,
                   icon: const Icon(Icons.person_add_alt_1_outlined),
                   label: const Text('Add Contact'),
                 ),
