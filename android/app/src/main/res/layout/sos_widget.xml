@@ -1,4 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Full-size layout (roughly 2x2 cells or larger) — used whenever the
+  widget is wide enough for a label to actually help, per
+  SosWidgetProvider.updateWidget's size check. sos_widget_root spans the
+  whole tile and carries the one click listener, so the entire visible
+  area is a single, generous tap target — the right shape for "get this
+  right on the first tap, without looking closely" rather than a small
+  precise button.
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/sos_widget_root"
     android:layout_width="match_parent"
@@ -8,13 +17,21 @@
     android:gravity="center"
     android:padding="12dp">
 
+    <ImageView
+        android:layout_width="26dp"
+        android:layout_height="26dp"
+        android:src="@android:drawable/ic_dialog_alert"
+        android:tint="#FFFFFF"
+        android:contentDescription="@string/sos_widget_description" />
+
     <TextView
         android:id="@+id/sos_widget_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
         android:text="SOS"
         android:textColor="#FFFFFF"
-        android:textSize="26sp"
+        android:textSize="24sp"
         android:textStyle="bold"
         android:letterSpacing="0.05" />
 

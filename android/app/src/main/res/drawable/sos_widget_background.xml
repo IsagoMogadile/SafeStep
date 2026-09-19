@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Deliberately not the app's alert-red — a big red "SOS" tile is the
+  first thing anyone glancing at this phone's home screen would notice,
+  which is exactly wrong for a button meant to be used *during* a
+  coercive situation (e.g. a phone grabbed off someone). The app's own
+  ordinary brand navy blends in as "just another app icon" while still
+  being instantly recognizable to the owner.
+-->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="#DC2626" />
+    <solid android:color="#0F2C59" />
     <corners android:radius="20dp" />
 </shape>

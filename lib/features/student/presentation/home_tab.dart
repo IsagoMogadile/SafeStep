@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/online_only_gate.dart';
 import 'call_security_screen.dart';
 import 'report_concern/report_step1_screen.dart';
 import 'safe_ride_screen.dart';
@@ -231,18 +232,30 @@ class HomeTab extends StatelessWidget {
                         ),
                       ),
                     ),
-                    QuickActionTile(
-                      icon: Icons.directions_walk,
-                      label: 'Safe Walks',
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const WalkHubScreen()),
+                    OnlineOnlyDimmer(
+                      child: QuickActionTile(
+                        icon: Icons.directions_walk,
+                        label: 'Safe Walks',
+                        onTap: () => runIfOnline(
+                          context,
+                          featureName: 'Safe Walks',
+                          action: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const WalkHubScreen()),
+                          ),
+                        ),
                       ),
                     ),
-                    QuickActionTile(
-                      icon: Icons.local_taxi_outlined,
-                      label: 'Safe Ride',
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const SafeRideScreen()),
+                    OnlineOnlyDimmer(
+                      child: QuickActionTile(
+                        icon: Icons.local_taxi_outlined,
+                        label: 'Safe Ride',
+                        onTap: () => runIfOnline(
+                          context,
+                          featureName: 'Safe Ride',
+                          action: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const SafeRideScreen()),
+                          ),
+                        ),
                       ),
                     ),
                     QuickActionTile(

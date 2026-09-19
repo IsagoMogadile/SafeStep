@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/connectivity/connectivity_service.dart';
+import '../../../../core/location/location_service.dart';
+import '../../../../core/offline/pending_alert_queue.dart';
 import '../../../../core/supabase/supabase_service.dart';
 import '../../data/alert_repository.dart';
 
@@ -51,6 +54,17 @@ class _SilentAlertTriggerState extends State<SilentAlertTrigger> {
     _completionGuard?.cancel();
   }
 
+  Future<void> _queueOffline(String userId) async {
+    final position = await LocationService.getCurrentLocation();
+    await PendingAlertQueue.add(
+      studentId: userId,
+      alertType: 'silent',
+      lat: position?.latitude,
+      lng: position?.longitude,
+      triggeredAt: DateTime.now(),
+    );
+  }
+
   Future<void> _trigger() async {
     if (_isTriggering) return;
 
@@ -65,10 +79,19 @@ class _SilentAlertTriggerState extends State<SilentAlertTrigger> {
 
     _isTriggering = true;
     try {
-      await _repository.createAlert(
-        studentId: SupabaseService.client.auth.currentUser!.id,
-        alertType: 'silent',
-      );
+      final userId = SupabaseService.client.auth.currentUser!.id;
+      final online = await ConnectivityService.hasConnection();
+      if (online) {
+        try {
+          await _repository.createAlert(studentId: userId, alertType: 'silent');
+        } catch (_) {
+          // Connection dropped mid-request — queue it the same as the
+          // offline branch below rather than losing the trigger entirely.
+          await _queueOffline(userId);
+        }
+      } else {
+        await _queueOffline(userId);
+      }
       await prefs.setInt(
         _lastTriggeredKey,
         DateTime.now().millisecondsSinceEpoch,

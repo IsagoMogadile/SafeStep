@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 
+import '../../../../core/connectivity/connectivity_service.dart';
+import '../../../../core/offline/pending_contact_queue.dart';
 import '../../../../core/validation/validators.dart';
 import '../../data/trusted_contact_repository.dart';
 import '../../domain/student_details.dart';
@@ -214,12 +216,28 @@ class _AddContactSheetState extends State<AddContactSheet> {
           'phone': phone.isEmpty ? null : phone,
         });
       } else if (_isEditing) {
+        // Editing an already-synced contact isn't queueable the way a
+        // brand-new one is (see PendingContactQueue) — there's a real
+        // server row that could conflict with, so this stays online-only.
+        if (!await ConnectivityService.hasConnection()) {
+          setState(() => _errorMessage = 'Editing a contact requires an internet connection.');
+          return;
+        }
         await widget.repository!.updateContact(
           contactId: widget.existingContact!['contact_id'] as String,
           name: _nameController.text.trim(),
           relationship: relationship,
           email: email.isEmpty ? null : email,
           phone: phone.isEmpty ? null : phone,
+        );
+      } else if (!await ConnectivityService.hasConnection()) {
+        await PendingContactQueue.add(
+          studentId: widget.studentId!,
+          name: _nameController.text.trim(),
+          relationship: relationship,
+          email: email.isEmpty ? null : email,
+          phone: phone.isEmpty ? null : phone,
+          createdAt: DateTime.now(),
         );
       } else {
         await widget.repository!.addContact(

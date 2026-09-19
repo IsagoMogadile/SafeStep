@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../../../core/widgets/skeleton_loader.dart';
+import '../../../core/widgets/staleness_banner.dart';
+import '../data/alerts_cache.dart';
 import '../data/dismissed_alerts_prefs.dart';
 import '../data/safe_ride_repository.dart';
 
@@ -20,6 +22,8 @@ class AlertsScreen extends StatefulWidget {
 class _AlertsScreenState extends State<AlertsScreen> {
   List<Map<String, dynamic>>? _alerts;
   Object? _error;
+  bool _isStale = false;
+  DateTime? _cachedAt;
 
   static final _timeFormat = DateFormat('d MMM yyyy, HH:mm');
 
@@ -29,21 +33,41 @@ class _AlertsScreenState extends State<AlertsScreen> {
     _load();
   }
 
+  Future<void> _load() async {
+    try {
+      final alerts = await _fetchAlerts();
+      await AlertsCache.save(alerts);
+      if (mounted) {
+        setState(() {
+          _alerts = alerts;
+          _error = null;
+          _isStale = false;
+        });
+      }
+    } catch (e) {
+      final (cached, cachedAt) = await AlertsCache.load();
+      if (cached.isEmpty) {
+        if (mounted) setState(() => _error = e);
+        return;
+      }
+      // Nothing to fall back to — a real error, not just "offline".
+      if (mounted) {
+        setState(() {
+          _alerts = cached;
+          _error = null;
+          _isStale = true;
+          _cachedAt = cachedAt;
+        });
+      }
+    }
+  }
+
   static const _statusLabels = {
     'acknowledged': 'A responder has acknowledged your alert',
     'dispatched': 'A responder has been dispatched to you',
     'resolved': 'Your alert has been marked resolved',
     'false_alarm_verify': 'Marked as a possible false alarm — security will still check in',
   };
-
-  Future<void> _load() async {
-    try {
-      final alerts = await _fetchAlerts();
-      if (mounted) setState(() { _alerts = alerts; _error = null; });
-    } catch (e) {
-      if (mounted) setState(() => _error = e);
-    }
-  }
 
   Future<List<Map<String, dynamic>>> _fetchAlerts() async {
     final userId = SupabaseService.client.auth.currentUser?.id;
@@ -194,7 +218,11 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Safety Alerts')),
-      body: RefreshIndicator(
+      body: Column(
+        children: [
+          if (_isStale) StalenessBanner(lastUpdated: _cachedAt),
+          Expanded(
+            child: RefreshIndicator(
         onRefresh: _refresh,
         child: Builder(
           builder: (context) {
@@ -316,6 +344,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
             );
           },
         ),
+      ),
+          ),
+        ],
       ),
     );
   }
