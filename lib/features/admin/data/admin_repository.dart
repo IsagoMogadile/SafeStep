@@ -76,50 +76,6 @@ class AdminRepository {
         .maybeSingle();
   }
 
-  Future<Map<String, int>> fetchOverviewCounts() async {
-    final activeAlerts = await _client
-        .from('alerts')
-        .select('alert_id')
-        .filter('status', 'in', '(new,acknowledged,dispatched)')
-        .count(CountOption.exact);
-
-    final weekAgo = DateTime.now()
-        .subtract(const Duration(days: 7))
-        .toIso8601String();
-    final reportsThisWeek = await _client
-        .from('incident_reports')
-        .select('report_id')
-        .gte('created_at', weekAgo)
-        .count(CountOption.exact);
-
-    final pendingGroups = await _client
-        .from('walking_groups')
-        .select('group_id')
-        .eq('status', 'pending')
-        .count(CountOption.exact);
-
-    final pendingResources = await _client
-        .from('resources')
-        .select('resource_id')
-        .eq('status', 'pending_verification')
-        .count(CountOption.exact);
-
-    final patrolRequests = await _client
-        .from('walking_groups')
-        .select('group_id')
-        .eq('requested_patrol', true)
-        .eq('status', 'approved')
-        .count(CountOption.exact);
-
-    return {
-      'activeAlerts': activeAlerts.count,
-      'reportsThisWeek': reportsThisWeek.count,
-      'pendingGroups': pendingGroups.count,
-      'pendingResources': pendingResources.count,
-      'patrolRequests': patrolRequests.count,
-    };
-  }
-
   // ---- alerts (admin-wide, unscoped by zone) ---------------------------
 
   Future<List<Map<String, dynamic>>> fetchAlerts() async {
