@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 
@@ -17,6 +19,7 @@ class AddContactSheet extends StatefulWidget {
     this.studentId,
     this.repository,
     this.onLocalAdd,
+    this.existingContact,
   }) : assert(
          (studentId != null && repository != null) || onLocalAdd != null,
          'Either studentId+repository (writes immediately) or onLocalAdd '
@@ -33,6 +36,10 @@ class AddContactSheet extends StatefulWidget {
   /// actually happens at the wizard's final confirm step.
   final ValueChanged<Map<String, dynamic>>? onLocalAdd;
 
+  /// When set, the sheet opens pre-filled for this contact and saves via
+  /// `updateContact` instead of `addContact`.
+  final Map<String, dynamic>? existingContact;
+
   @override
   State<AddContactSheet> createState() => _AddContactSheetState();
 }
@@ -48,13 +55,99 @@ class _AddContactSheetState extends State<AddContactSheet> {
   bool _isSubmitting = false;
   String? _errorMessage;
 
+  // Live "does this match an existing SafeStep account?" check, shown
+  // right in this sheet instead of only after saving — feedback: "what
+  // happened to showing app linked or SMS when adding trusted
+  // contacts?" It never showed here at all before; only on the list
+  // screen's chip, after the fact. Only available when there's an
+  // authenticated session (widget.repository != null) — the lookup RPC
+  // isn't granted to anon, so this can't run during the pre-account
+  // signup wizard's local contact collection.
+  Timer? _linkCheckDebounce;
+  int _linkCheckRequestId = 0;
+  bool _isCheckingLink = false;
+  bool? _isLinked;
+
+  bool get _isEditing => widget.existingContact != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existingContact;
+    if (existing != null) {
+      _nameController.text = existing['name'] as String? ?? '';
+      _emailController.text = existing['email'] as String? ?? '';
+      _phoneController.text = existing['phone'] as String? ?? '';
+      final relationship = existing['relationship'] as String?;
+      if (relationship != null && relationshipOptions.contains(relationship)) {
+        _relationship = relationship;
+      } else if (relationship != null) {
+        _relationship = 'Other';
+        _otherRelationshipController.text = relationship;
+      }
+    }
+    if (widget.repository != null) {
+      _emailController.addListener(_scheduleLinkCheck);
+      _phoneController.addListener(_scheduleLinkCheck);
+      // Kick off the initial check (for edit mode's prefilled values)
+      // without calling setState synchronously inside initState — set
+      // the field directly instead; the check's own async continuation
+      // (after the RPC await) is what safely calls setState later.
+      final email = _emailController.text.trim();
+      final phone = _phoneController.text.trim();
+      if (email.isNotEmpty || phone.isNotEmpty) {
+        _isCheckingLink = true;
+        _runLinkCheck(email, phone);
+      }
+    }
+  }
+
   @override
   void dispose() {
+    _linkCheckDebounce?.cancel();
     _nameController.dispose();
     _otherRelationshipController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     super.dispose();
+  }
+
+  void _scheduleLinkCheck({bool immediate = false}) {
+    _linkCheckDebounce?.cancel();
+    final email = _emailController.text.trim();
+    final phone = _phoneController.text.trim();
+    if (email.isEmpty && phone.isEmpty) {
+      setState(() {
+        _isLinked = null;
+        _isCheckingLink = false;
+      });
+      return;
+    }
+    setState(() => _isCheckingLink = true);
+    if (immediate) {
+      _runLinkCheck(email, phone);
+    } else {
+      _linkCheckDebounce = Timer(
+        const Duration(milliseconds: 600),
+        () => _runLinkCheck(email, phone),
+      );
+    }
+  }
+
+  Future<void> _runLinkCheck(String email, String phone) async {
+    final requestId = ++_linkCheckRequestId;
+    final linkedId = await widget.repository!.findLinkedStudentId(
+      email: email.isEmpty ? null : email,
+      phone: phone.isEmpty ? null : phone,
+    );
+    // Discard the result if a newer keystroke has since started another
+    // check — otherwise a slow early request could overwrite a faster
+    // later one and show a stale answer.
+    if (!mounted || requestId != _linkCheckRequestId) return;
+    setState(() {
+      _isCheckingLink = false;
+      _isLinked = linkedId != null;
+    });
   }
 
   Future<void> _pickFromContacts() async {
@@ -120,6 +213,14 @@ class _AddContactSheetState extends State<AddContactSheet> {
           'email': email.isEmpty ? null : email,
           'phone': phone.isEmpty ? null : phone,
         });
+      } else if (_isEditing) {
+        await widget.repository!.updateContact(
+          contactId: widget.existingContact!['contact_id'] as String,
+          name: _nameController.text.trim(),
+          relationship: relationship,
+          email: email.isEmpty ? null : email,
+          phone: phone.isEmpty ? null : phone,
+        );
       } else {
         await widget.repository!.addContact(
           studentId: widget.studentId!,
@@ -164,15 +265,17 @@ class _AddContactSheetState extends State<AddContactSheet> {
               ),
             ),
             Text(
-              'Add Trusted Contact',
+              _isEditing ? 'Edit Trusted Contact' : 'Add Trusted Contact',
               style: Theme.of(context).textTheme.titleLarge,
             ),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: _pickFromContacts,
-              icon: const Icon(Icons.contacts_outlined),
-              label: const Text('Choose from Contacts'),
-            ),
+            if (!_isEditing) ...[
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: _pickFromContacts,
+                icon: const Icon(Icons.contacts_outlined),
+                label: const Text('Choose from Contacts'),
+              ),
+            ],
             const SizedBox(height: 16),
             TextFormField(
               controller: _nameController,
@@ -221,6 +324,10 @@ class _AddContactSheetState extends State<AddContactSheet> {
               ),
               validator: (value) => phoneValidator(value, required: true),
             ),
+            if (widget.repository != null) ...[
+              const SizedBox(height: 10),
+              _LinkStatusIndicator(isChecking: _isCheckingLink, isLinked: _isLinked),
+            ],
             if (_errorMessage != null) ...[
               const SizedBox(height: 12),
               Text(
@@ -237,11 +344,64 @@ class _AddContactSheetState extends State<AddContactSheet> {
                       height: 22,
                       child: CircularProgressIndicator(strokeWidth: 2.4),
                     )
-                  : const Text('Save Contact'),
+                  : Text(_isEditing ? 'Save Changes' : 'Save Contact'),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _LinkStatusIndicator extends StatelessWidget {
+  const _LinkStatusIndicator({required this.isChecking, required this.isLinked});
+
+  final bool isChecking;
+  final bool? isLinked;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isChecking) {
+      return const Row(
+        children: [
+          SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(width: 8),
+          Text('Checking for an existing account…', style: TextStyle(fontSize: 12.5)),
+        ],
+      );
+    }
+    if (isLinked == null) return const SizedBox.shrink();
+
+    final colorScheme = Theme.of(context).colorScheme;
+    if (isLinked!) {
+      return Row(
+        children: [
+          Icon(Icons.check_circle, size: 16, color: colorScheme.tertiary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Has a SafeStep account — they\'ll get instant notifications',
+              style: TextStyle(fontSize: 12.5, color: colorScheme.tertiary),
+            ),
+          ),
+        ],
+      );
+    }
+    return Row(
+      children: [
+        Icon(Icons.info_outline, size: 16, color: colorScheme.onSurfaceVariant),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'No account found — they\'ll be reached by SMS',
+            style: TextStyle(fontSize: 12.5, color: colorScheme.onSurfaceVariant),
+          ),
+        ),
+      ],
     );
   }
 }

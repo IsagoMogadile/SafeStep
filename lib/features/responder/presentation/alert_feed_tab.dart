@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/responder_repository.dart';
 import 'alert_detail_screen.dart';
+import 'cctv_monitor_screen.dart';
 
 const _statusBadge = {
   'new': ('New', AppColors.seed),
@@ -69,7 +70,9 @@ class _AlertFeedTabState extends State<AlertFeedTab> {
           final rows = snapshot.data!;
           if (rows.isEmpty) {
             return ListView(
+              padding: const EdgeInsets.all(20),
               children: [
+                const CctvMonitorEntryCard(),
                 Padding(
                   padding: const EdgeInsets.all(48),
                   child: Center(
@@ -84,10 +87,16 @@ class _AlertFeedTabState extends State<AlertFeedTab> {
           }
           return ListView.separated(
             padding: const EdgeInsets.all(20),
-            itemCount: rows.length,
+            itemCount: rows.length + 1,
             separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, index) {
-              final row = rows[index];
+              if (index == 0) {
+                return const Padding(
+                  padding: EdgeInsets.only(bottom: 16),
+                  child: CctvMonitorEntryCard(),
+                );
+              }
+              final row = rows[index - 1];
               final alert = row['alerts'] as Map<String, dynamic>;
               final student = alert['students'] as Map<String, dynamic>?;
               final zone = alert['zones'] as Map<String, dynamic>?;

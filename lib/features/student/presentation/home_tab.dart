@@ -256,7 +256,7 @@ class HomeTab extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SilentAlertTrigger(),
+                 const SilentAlertTrigger(),
               ],
             ),
           ),
