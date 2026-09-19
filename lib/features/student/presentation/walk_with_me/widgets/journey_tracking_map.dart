@@ -15,11 +15,24 @@ class JourneyTrackingMap extends StatefulWidget {
   const JourneyTrackingMap({
     super.key,
     required this.currentPosition,
-    required this.destinationQuery,
-  });
+    this.destinationQuery,
+    this.destinationPoint,
+    this.destinationIcon = Icons.flag,
+  }) : assert(
+         (destinationQuery == null) != (destinationPoint == null),
+         'Provide exactly one of destinationQuery or destinationPoint',
+       );
 
   final LatLng currentPosition;
-  final String destinationQuery;
+
+  /// Free-text destination to geocode — used for the real journey
+  /// destination.
+  final String? destinationQuery;
+
+  /// Already-known destination coordinates — used for the computed
+  /// meeting point, which has no address to geocode.
+  final LatLng? destinationPoint;
+  final IconData destinationIcon;
 
   @override
   State<JourneyTrackingMap> createState() => _JourneyTrackingMapState();
@@ -35,7 +48,8 @@ class _JourneyTrackingMapState extends State<JourneyTrackingMap> {
   }
 
   Future<_PlannedRoute?> _planRoute() async {
-    final destination = await RouteService.geocode(widget.destinationQuery);
+    final destination =
+        widget.destinationPoint ?? await RouteService.geocode(widget.destinationQuery!);
     if (destination == null) return null;
     final path = await RouteService.fetchWalkingRoute(widget.currentPosition, destination);
     return _PlannedRoute(
@@ -102,7 +116,7 @@ class _JourneyTrackingMapState extends State<JourneyTrackingMap> {
                         point: destination,
                         width: 34,
                         height: 34,
-                        child: const Icon(Icons.flag, color: AppColors.alert, size: 26),
+                        child: Icon(widget.destinationIcon, color: AppColors.alert, size: 26),
                       ),
                   ],
                 ),
