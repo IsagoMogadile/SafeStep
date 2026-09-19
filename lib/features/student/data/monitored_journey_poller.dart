@@ -5,11 +5,16 @@ import 'package:flutter/foundation.dart';
 import '../../../core/notifications/notification_service.dart';
 import 'walk_session_repository.dart';
 
-/// Polls for "Monitor My Journey" sessions where the signed-in student
-/// was picked as a monitor, and raises a local notification the moment a
-/// new one starts — same polling approach as AlertStatusPoller, since
-/// this app has no realtime/push mechanism to notify another student's
-/// device the instant a journey begins.
+/// Polls for journeys the signed-in student can watch live (both "Monitor
+/// My Journey" sessions where they were picked as a monitor, and accepted
+/// "Invite a Companion" journeys), and raises a local notification the
+/// moment a new *monitored* one starts — same polling approach as
+/// AlertStatusPoller, since this app has no realtime/push mechanism to
+/// notify another student's device the instant a journey begins. Accepted
+/// companion journeys don't get this notification: accepting was already
+/// that student's own action, so a follow-up "X started a journey"
+/// notification right after would just be a confusing echo of what they
+/// already know — they're taken straight to the tracking screen instead.
 class MonitoredJourneyPoller {
   MonitoredJourneyPoller({required this.studentId, this.onChange});
 
@@ -42,7 +47,10 @@ class MonitoredJourneyPoller {
     final currentIds = sessions.map((s) => s['session_id'] as String).toSet();
     final newIds = currentIds.difference(_knownSessionIds);
     if (_seeded && newIds.isNotEmpty) {
-      for (final session in sessions.where((s) => newIds.contains(s['session_id']))) {
+      final newSessions = sessions.where(
+        (s) => newIds.contains(s['session_id']) && s['mode'] == 'self_monitored',
+      );
+      for (final session in newSessions) {
         await _notify(session);
       }
     }

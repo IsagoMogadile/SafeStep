@@ -58,6 +58,14 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
       }
     } else {
       _showNotification();
+      // Lets the companion follow this journey live on a map once they
+      // accept, rather than only seeing the static planned-route preview
+      // from the invite card — see MonitorTrackingScreen.
+      _pushLocation();
+      _locationPushTimer = Timer.periodic(
+        const Duration(seconds: 20),
+        (_) => _pushLocation(),
+      );
       if (!_companionAccepted) {
         // No realtime subscriptions exist anywhere in this app yet — a
         // short poll is the simplest correct way to notice the companion

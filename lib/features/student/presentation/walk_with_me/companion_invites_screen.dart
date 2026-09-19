@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../../core/supabase/supabase_service.dart';
 import '../../../../core/widgets/skeleton_loader.dart';
 import '../../data/walk_session_repository.dart';
+import 'monitor_tracking_screen.dart';
 import 'widgets/route_map_view.dart';
 
 /// The companion's side of "Invite a companion" (scope.md §5: "they must
@@ -37,9 +38,13 @@ class _CompanionInvitesScreenState extends State<CompanionInvitesScreen> {
 
   Future<void> _accept(String sessionId) async {
     await _repository.acceptCompanionInvite(sessionId);
+    if (!mounted) return;
+    // Straight into the live map rather than just a snackbar — that's
+    // the whole point of accepting.
+    final session = await _repository.fetchSession(sessionId);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Accepted — you're now watching their journey")),
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => MonitorTrackingScreen(session: session)),
       );
     }
     _refresh();
