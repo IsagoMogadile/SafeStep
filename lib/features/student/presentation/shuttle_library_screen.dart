@@ -13,7 +13,7 @@ class ShuttleLibraryScreen extends StatelessWidget {
   ];
 
   static const _libraryHours = [
-    ('South Campus Library', 'Mon–Thu 08:00–10:00 · Fri 08:00–20:00'),
+    ('South Campus Library', 'Mon–Thu 08:00–22:00 · Fri 08:00–20:00'),
     ('2nd Avenue Library', 'Mon–Fri 08:00–20:00'),
      ('Missionvale Library', 'Mon–Fri 08:00–20:00'),
   ];
