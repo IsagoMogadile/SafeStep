@@ -6,6 +6,7 @@ import '../../../../core/location/route_service.dart';
 import '../../../../core/supabase/supabase_service.dart';
 import '../../data/walk_session_repository.dart';
 import 'walk_active_screen.dart';
+import 'widgets/map_destination_picker_sheet.dart';
 
 class WalkTimerScreen extends StatefulWidget {
   const WalkTimerScreen({super.key});
@@ -127,6 +128,13 @@ class _WalkTimerScreenState extends State<WalkTimerScreen> {
     }
   }
 
+  Future<void> _pickDestinationOnMap() async {
+    final picked = await pickDestinationOnMap(context);
+    if (picked != null && mounted) {
+      setState(() => _destinationController.text = picked);
+    }
+  }
+
   Future<void> _start() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -196,9 +204,14 @@ class _WalkTimerScreenState extends State<WalkTimerScreen> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _destinationController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Destination',
-                    prefixIcon: Icon(Icons.flag_outlined),
+                    prefixIcon: const Icon(Icons.flag_outlined),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.map_outlined),
+                      tooltip: 'Pick on map',
+                      onPressed: _pickDestinationOnMap,
+                    ),
                   ),
                   validator: (value) => (value == null || value.trim().isEmpty)
                       ? 'Enter a destination'

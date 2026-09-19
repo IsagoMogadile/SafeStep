@@ -131,6 +131,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       future: _groupFuture,
       builder: (context, groupSnapshot) {
         final group = groupSnapshot.data;
+        final status = group?['status'] as String?;
         return Scaffold(
           appBar: AppBar(
             title: Text(group?['name'] as String? ?? 'Group'),
@@ -144,33 +145,68 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
           ),
           body: TabBarView(
             controller: _tabController,
-            children: [_buildMessagesTab(), _buildMembersTab()],
+            children: [_buildMessagesTab(status), _buildMembersTab()],
           ),
           bottomNavigationBar: SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(12),
-              child: _isBusy
-                  ? const Center(
-                      child: SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2.4),
-                      ),
-                    )
-                  : OutlinedButton(
-                      onPressed: _toggleMembership,
-                      style: _isMember
-                          ? OutlinedButton.styleFrom(
-                              foregroundColor:
-                                  Theme.of(context).colorScheme.error,
-                            )
-                          : null,
-                      child: Text(_isMember ? 'Leave Group' : 'Join Group'),
-                    ),
+              child: _buildMembershipControl(status),
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildMembershipControl(String? status) {
+    if (status != 'approved') {
+      // Joining (and, for the creator, the chat itself) only opens up
+      // once an admin approves the group — the creator is then added
+      // automatically, so there's nothing to click here either way.
+      final colorScheme = Theme.of(context).colorScheme;
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              status == 'rejected' ? Icons.block : Icons.hourglass_top,
+              size: 18,
+              color: colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              status == 'rejected'
+                  ? "This group wasn't approved"
+                  : 'Awaiting admin approval',
+              style: TextStyle(color: colorScheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+      );
+    }
+    if (_isBusy) {
+      return const Center(
+        child: SizedBox(
+          width: 22,
+          height: 22,
+          child: CircularProgressIndicator(strokeWidth: 2.4),
+        ),
+      );
+    }
+    return OutlinedButton(
+      onPressed: _toggleMembership,
+      style: _isMember
+          ? OutlinedButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            )
+          : null,
+      child: Text(_isMember ? 'Leave Group' : 'Join Group'),
     );
   }
 
@@ -205,7 +241,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     );
   }
 
-  Widget _buildMessagesTab() {
+  Widget _buildMessagesTab(String? status) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Column(
@@ -221,7 +257,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
               if (messages.isEmpty) {
                 return Center(
                   child: Text(
-                    _isMember
+                    status != 'approved'
+                        ? 'This group is awaiting admin approval'
+                        : _isMember
                         ? 'No messages yet — say hi below'
                         : 'Join this group to see and send messages',
                     textAlign: TextAlign.center,

@@ -23,6 +23,9 @@ class NotificationService {
   static const _alertStatusChannelId = 'alert_status';
   int _alertStatusNotificationId = 2001;
 
+  static const _monitoredJourneyChannelId = 'monitored_journeys';
+  int _monitoredJourneyNotificationId = 3001;
+
   final _plugin = FlutterLocalNotificationsPlugin();
   void Function(String actionId)? onAction;
   bool _initialized = false;
@@ -106,6 +109,29 @@ class NotificationService {
     );
     await _plugin.show(
       _alertStatusNotificationId++,
+      title,
+      body,
+      const NotificationDetails(android: details),
+    );
+  }
+
+  /// A one-shot notification for someone who picked this student as a
+  /// "Monitor My Journey" contact, fired as soon as the journey is seen
+  /// to have started (see MonitoredJourneyPoller).
+  Future<void> showMonitoredJourneyNotification({
+    required String title,
+    required String body,
+  }) async {
+    const details = AndroidNotificationDetails(
+      _monitoredJourneyChannelId,
+      'Journeys you monitor',
+      channelDescription:
+          "Someone who added you as a monitor has started a Safe Walks journey",
+      importance: Importance.high,
+      priority: Priority.high,
+    );
+    await _plugin.show(
+      _monitoredJourneyNotificationId++,
       title,
       body,
       const NotificationDetails(android: details),

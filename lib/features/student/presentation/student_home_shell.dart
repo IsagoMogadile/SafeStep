@@ -8,6 +8,7 @@ import '../../../core/supabase/supabase_service.dart';
 import '../../auth/data/auth_repository.dart';
 import '../data/alert_status_poller.dart';
 import '../data/alerts_seen_prefs.dart';
+import '../data/monitored_journey_poller.dart';
 import '../data/safe_ride_report_poller.dart';
 import '../data/walk_session_repository.dart';
 import 'alerts_screen.dart';
@@ -17,6 +18,7 @@ import 'profile_tab.dart';
 import 'quick_sos_screen.dart';
 import 'support_screen.dart';
 import 'walk_with_me/companion_invites_screen.dart';
+import 'walk_with_me/monitored_journeys_screen.dart';
 import 'widgets/student_drawer.dart';
 
 /// Student post-login shell: exactly 3 bottom-nav tabs (Home/Map/Profile)
@@ -35,10 +37,12 @@ class _StudentHomeShellState extends State<StudentHomeShell> {
   late final Future<Map<String, dynamic>?> _profileFuture;
   late Future<int> _unreadAlertsFuture;
   late Future<int> _pendingInvitesFuture;
+  late Future<int> _monitoredJourneysFuture;
   StreamSubscription<Uri?>? _widgetClickSub;
   bool _openedQuickSos = false;
   AlertStatusPoller? _alertStatusPoller;
   SafeRideReportPoller? _safeRideReportPoller;
+  MonitoredJourneyPoller? _monitoredJourneyPoller;
 
   @override
   void initState() {
@@ -46,6 +50,7 @@ class _StudentHomeShellState extends State<StudentHomeShell> {
     _profileFuture = _fetchProfile();
     _unreadAlertsFuture = _fetchUnreadAlertsCount();
     _pendingInvitesFuture = _fetchPendingInviteCount();
+    _monitoredJourneysFuture = _fetchMonitoredJourneyCount();
     HomeWidget.initiallyLaunchedFromHomeWidget().then(_handleWidgetUri);
     _widgetClickSub = HomeWidget.widgetClicked.listen(_handleWidgetUri);
     final studentId = SupabaseService.client.auth.currentUser?.id;
@@ -58,6 +63,10 @@ class _StudentHomeShellState extends State<StudentHomeShell> {
         studentId: studentId,
         onChange: _refreshUnreadBadge,
       )..start();
+      _monitoredJourneyPoller = MonitoredJourneyPoller(
+        studentId: studentId,
+        onChange: _refreshMonitoredJourneysBadge,
+      )..start();
     }
   }
 
@@ -66,6 +75,7 @@ class _StudentHomeShellState extends State<StudentHomeShell> {
     _widgetClickSub?.cancel();
     _alertStatusPoller?.stop();
     _safeRideReportPoller?.stop();
+    _monitoredJourneyPoller?.stop();
     super.dispose();
   }
 
@@ -98,6 +108,28 @@ class _StudentHomeShellState extends State<StudentHomeShell> {
     );
     if (mounted) {
       setState(() { _pendingInvitesFuture = _fetchPendingInviteCount(); });
+    }
+  }
+
+  Future<int> _fetchMonitoredJourneyCount() async {
+    final userId = SupabaseService.client.auth.currentUser?.id;
+    if (userId == null) return 0;
+    final sessions = await _walkRepository.fetchActiveMonitoredSessions(userId);
+    return sessions.length;
+  }
+
+  void _refreshMonitoredJourneysBadge() {
+    if (mounted) {
+      setState(() { _monitoredJourneysFuture = _fetchMonitoredJourneyCount(); });
+    }
+  }
+
+  Future<void> _openMonitoredJourneys() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const MonitoredJourneysScreen()),
+    );
+    if (mounted) {
+      setState(() { _monitoredJourneysFuture = _fetchMonitoredJourneyCount(); });
     }
   }
 
@@ -217,6 +249,8 @@ class _StudentHomeShellState extends State<StudentHomeShell> {
                 campusName: campusName,
                 pendingInvitesFuture: _pendingInvitesFuture,
                 onOpenPendingInvites: _openCompanionInvites,
+                monitoredJourneysFuture: _monitoredJourneysFuture,
+                onOpenMonitoredJourneys: _openMonitoredJourneys,
                 unreadAlertsFuture: _unreadAlertsFuture,
                 onOpenAlerts: _openAlerts,
               ),

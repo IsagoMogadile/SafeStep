@@ -37,8 +37,9 @@ class WalkHubScreen extends StatelessWidget {
             iconColor: colorScheme.primary,
             title: 'Monitor my own journey',
             description:
-                "Set a timer. If you don't check in, we notify your "
-                'contacts and security.',
+                'Set a timer. Whoever you pick can track you live on a map '
+                "until you arrive — and if you don't check in, we notify "
+                'your contacts and security.',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const WalkTimerScreen()),
             ),

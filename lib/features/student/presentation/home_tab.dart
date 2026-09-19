@@ -19,6 +19,8 @@ class HomeTab extends StatelessWidget {
     required this.campusName,
     this.pendingInvitesFuture,
     this.onOpenPendingInvites,
+    this.monitoredJourneysFuture,
+    this.onOpenMonitoredJourneys,
     this.unreadAlertsFuture,
     this.onOpenAlerts,
   });
@@ -26,6 +28,8 @@ class HomeTab extends StatelessWidget {
   final String? campusName;
   final Future<int>? pendingInvitesFuture;
   final VoidCallback? onOpenPendingInvites;
+  final Future<int>? monitoredJourneysFuture;
+  final VoidCallback? onOpenMonitoredJourneys;
   final Future<int>? unreadAlertsFuture;
   final VoidCallback? onOpenAlerts;
 
@@ -145,6 +149,53 @@ class HomeTab extends StatelessWidget {
                                   ),
                                 ),
                                 Icon(Icons.chevron_right, color: colorScheme.tertiary),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                if (monitoredJourneysFuture != null)
+                  FutureBuilder<int>(
+                    future: monitoredJourneysFuture,
+                    builder: (context, snapshot) {
+                      final count = snapshot.data ?? 0;
+                      if (count == 0) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: InkWell(
+                          onTap: onOpenMonitoredJourneys,
+                          borderRadius: BorderRadius.circular(14),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 15,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colorScheme.primaryContainer.withValues(alpha: 0.5),
+                              border: Border.all(
+                                color: colorScheme.primary.withValues(alpha: 0.4),
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.route_outlined, color: colorScheme.primary, size: 18),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    count == 1
+                                        ? "You're monitoring 1 journey right now"
+                                        : "You're monitoring $count journeys right now",
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                Icon(Icons.chevron_right, color: colorScheme.primary),
                               ],
                             ),
                           ),

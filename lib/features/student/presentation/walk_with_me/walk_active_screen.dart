@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../../core/location/location_service.dart';
 import '../../../../core/notifications/notification_service.dart';
 import '../../data/walk_session_repository.dart';
 import '../active_sos_screen.dart';
@@ -26,6 +27,7 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
   Timer? _tickTimer;
   Timer? _graceTimer;
   Timer? _acceptancePollTimer;
+  Timer? _locationPushTimer;
   Duration _remaining = Duration.zero;
   bool _showingCheckInPrompt = false;
   bool _isBusy = false;
@@ -33,6 +35,8 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
 
   bool get _isTimerMode => _session['mode'] == 'self_monitored';
   bool get _companionAccepted => _session['companion_accepted_at'] != null;
+  bool get _hasMonitors =>
+      (_session['monitor_contact_ids'] as List?)?.isNotEmpty == true;
 
   @override
   void initState() {
@@ -42,6 +46,16 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
     if (_isTimerMode) {
       _recomputeRemaining();
       _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+      if (_hasMonitors) {
+        // Lets whoever was picked as a monitor follow this journey live
+        // on a map rather than only knowing a timer is running — see
+        // MonitoredJourneysScreen / MonitorTrackingScreen.
+        _pushLocation();
+        _locationPushTimer = Timer.periodic(
+          const Duration(seconds: 20),
+          (_) => _pushLocation(),
+        );
+      }
     } else {
       _showNotification();
       if (!_companionAccepted) {
@@ -71,9 +85,20 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
     _tickTimer?.cancel();
     _graceTimer?.cancel();
     _acceptancePollTimer?.cancel();
+    _locationPushTimer?.cancel();
     NotificationService.instance.onAction = null;
     NotificationService.instance.cancelJourneyNotification();
     super.dispose();
+  }
+
+  Future<void> _pushLocation() async {
+    final position = await LocationService.getCurrentLocation();
+    if (position == null || !mounted) return;
+    await _repository.updateLocation(
+      sessionId: _session['session_id'] as String,
+      lat: position.latitude,
+      lng: position.longitude,
+    );
   }
 
   /// Lets the student use other apps during a journey (feedback: "make it

@@ -17,7 +17,7 @@ class GroupRepository {
         .from('group_members')
         .select('student_id, joined_at, students(full_name)')
         .eq('group_id', groupId)
-        .order('joined_at');
+        .order('joined_at', ascending: true);
   }
 
   Future<bool> isMember(String groupId, String studentId) async {
@@ -46,11 +46,16 @@ class GroupRepository {
   }
 
   Future<List<Map<String, dynamic>>> fetchMessages(String groupId) {
+    // supabase-flutter's .order() defaults to ascending: false (newest
+    // first) — the opposite of SQL's ORDER BY default — so this must be
+    // explicit or messages come back newest-first and, once fed through
+    // the reversed ListView below, render newest-at-top instead of
+    // newest-at-bottom.
     return _client
         .from('group_messages')
         .select('message_id, preset_key, created_at, student_id, students(full_name)')
         .eq('group_id', groupId)
-        .order('created_at');
+        .order('created_at', ascending: true);
   }
 
   Future<void> sendPresetMessage({

@@ -134,6 +134,44 @@ class WalkSessionRepository {
         .eq('session_id', sessionId);
   }
 
+  Future<void> updateLocation({
+    required String sessionId,
+    required double lat,
+    required double lng,
+  }) async {
+    await _client
+        .from('walk_sessions')
+        .update({
+          'current_lat': lat,
+          'current_lng': lng,
+          'location_updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('session_id', sessionId);
+  }
+
+  /// Every active `self_monitored` session where the signed-in student is
+  /// one of the chosen monitors (their own `trusted_contacts` row, linked
+  /// back to them, is in `monitor_contact_ids`) — same linking pattern as
+  /// [fetchPendingCompanionInvites].
+  Future<List<Map<String, dynamic>>> fetchActiveMonitoredSessions(
+    String monitorStudentId,
+  ) async {
+    final myContactRows = await _client
+        .from('trusted_contacts')
+        .select('contact_id')
+        .eq('linked_student_id', monitorStudentId);
+    final contactIds = myContactRows.map((r) => r['contact_id'] as String).toList();
+    if (contactIds.isEmpty) return [];
+
+    final rows = await _client
+        .from('walk_sessions')
+        .select('*, students(full_name)')
+        .eq('mode', 'self_monitored')
+        .eq('status', 'active')
+        .overlaps('monitor_contact_ids', contactIds);
+    return List<Map<String, dynamic>>.from(rows);
+  }
+
   Future<void> markCheckInMissed(String sessionId) async {
     await _client
         .from('walk_sessions')
