@@ -77,7 +77,7 @@ class _OverviewTabState extends State<OverviewTab> {
                     color: AppColors.seed,
                     label: 'Groups pending approval',
                     value: counts['pendingGroups'] ?? 0,
-                    onTap: () => widget.onNavigateToSection(7),
+                    onTap: () => widget.onNavigateToSection(8),
                   ),
                   _StatCard(
                     icon: Icons.menu_book_outlined,
@@ -91,7 +91,7 @@ class _OverviewTabState extends State<OverviewTab> {
                     color: AppColors.safe,
                     label: 'Approved groups requesting patrol',
                     value: counts['patrolRequests'] ?? 0,
-                    onTap: () => widget.onNavigateToSection(7),
+                    onTap: () => widget.onNavigateToSection(8),
                   ),
                 ],
               ),
