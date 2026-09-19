@@ -41,6 +41,19 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
     if (added == true) _refresh();
   }
 
+  Future<void> _editContact(Map<String, dynamic> contact) async {
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => AddContactSheet(
+        studentId: _userId,
+        repository: _repository,
+        existingContact: contact,
+      ),
+    );
+    if (saved == true) _refresh();
+  }
+
   Future<void> _removeContact(Map<String, dynamic> contact) async {
     final name = contact['name'] as String? ?? 'this contact';
     await _repository.removeContact(contact['contact_id'] as String);
@@ -132,6 +145,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                               borderRadius: BorderRadius.circular(14),
                             ),
                             child: ListTile(
+                              onTap: () => _editContact(contact),
                               title: Text(contact['name'] as String? ?? ''),
                               subtitle: Text(
                                 contact['relationship'] as String? ?? '',
@@ -148,7 +162,13 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                                         : colorScheme.surfaceContainerHighest,
                                   ),
                                   IconButton(
+                                    icon: const Icon(Icons.edit_outlined, size: 18),
+                                    tooltip: 'Edit',
+                                    onPressed: () => _editContact(contact),
+                                  ),
+                                  IconButton(
                                     icon: const Icon(Icons.close, size: 18),
+                                    tooltip: 'Remove',
                                     onPressed: () => _removeContact(contact),
                                   ),
                                 ],

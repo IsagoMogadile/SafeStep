@@ -17,6 +17,7 @@ class AddContactSheet extends StatefulWidget {
     this.studentId,
     this.repository,
     this.onLocalAdd,
+    this.existingContact,
   }) : assert(
          (studentId != null && repository != null) || onLocalAdd != null,
          'Either studentId+repository (writes immediately) or onLocalAdd '
@@ -33,6 +34,10 @@ class AddContactSheet extends StatefulWidget {
   /// actually happens at the wizard's final confirm step.
   final ValueChanged<Map<String, dynamic>>? onLocalAdd;
 
+  /// When set, the sheet opens pre-filled for this contact and saves via
+  /// `updateContact` instead of `addContact`.
+  final Map<String, dynamic>? existingContact;
+
   @override
   State<AddContactSheet> createState() => _AddContactSheetState();
 }
@@ -47,6 +52,26 @@ class _AddContactSheetState extends State<AddContactSheet> {
   String? _relationship;
   bool _isSubmitting = false;
   String? _errorMessage;
+
+  bool get _isEditing => widget.existingContact != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existingContact;
+    if (existing != null) {
+      _nameController.text = existing['name'] as String? ?? '';
+      _emailController.text = existing['email'] as String? ?? '';
+      _phoneController.text = existing['phone'] as String? ?? '';
+      final relationship = existing['relationship'] as String?;
+      if (relationship != null && relationshipOptions.contains(relationship)) {
+        _relationship = relationship;
+      } else if (relationship != null) {
+        _relationship = 'Other';
+        _otherRelationshipController.text = relationship;
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -120,6 +145,14 @@ class _AddContactSheetState extends State<AddContactSheet> {
           'email': email.isEmpty ? null : email,
           'phone': phone.isEmpty ? null : phone,
         });
+      } else if (_isEditing) {
+        await widget.repository!.updateContact(
+          contactId: widget.existingContact!['contact_id'] as String,
+          name: _nameController.text.trim(),
+          relationship: relationship,
+          email: email.isEmpty ? null : email,
+          phone: phone.isEmpty ? null : phone,
+        );
       } else {
         await widget.repository!.addContact(
           studentId: widget.studentId!,
@@ -164,15 +197,17 @@ class _AddContactSheetState extends State<AddContactSheet> {
               ),
             ),
             Text(
-              'Add Trusted Contact',
+              _isEditing ? 'Edit Trusted Contact' : 'Add Trusted Contact',
               style: Theme.of(context).textTheme.titleLarge,
             ),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: _pickFromContacts,
-              icon: const Icon(Icons.contacts_outlined),
-              label: const Text('Choose from Contacts'),
-            ),
+            if (!_isEditing) ...[
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: _pickFromContacts,
+                icon: const Icon(Icons.contacts_outlined),
+                label: const Text('Choose from Contacts'),
+              ),
+            ],
             const SizedBox(height: 16),
             TextFormField(
               controller: _nameController,
@@ -237,7 +272,7 @@ class _AddContactSheetState extends State<AddContactSheet> {
                       height: 22,
                       child: CircularProgressIndicator(strokeWidth: 2.4),
                     )
-                  : const Text('Save Contact'),
+                  : Text(_isEditing ? 'Save Changes' : 'Save Contact'),
             ),
           ],
         ),
