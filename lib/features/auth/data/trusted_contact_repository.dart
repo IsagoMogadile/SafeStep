@@ -52,6 +52,40 @@ class TrustedContactRepository {
     });
   }
 
+  /// Re-runs the same app-account lookup as [addContact] — if the edited
+  /// email/phone now matches (or no longer matches) an existing SafeStep
+  /// account, the linked status is updated to reflect that rather than
+  /// staying stuck at whatever it was when the contact was first added.
+  Future<void> updateContact({
+    required String contactId,
+    required String name,
+    required String relationship,
+    String? email,
+    String? phone,
+  }) async {
+    String? linkedStudentId;
+    try {
+      linkedStudentId = await _client.rpc(
+        'find_student_by_contact',
+        params: {'p_email': email, 'p_phone': phone},
+      );
+    } catch (_) {
+      // Migration not applied yet, or no match — fall back below.
+    }
+
+    await _client
+        .from('trusted_contacts')
+        .update({
+          'name': name,
+          'relationship': relationship,
+          'email': email,
+          'phone': phone,
+          'linked_student_id': linkedStudentId,
+          'status': linkedStudentId != null ? 'app_linked' : 'sms_only',
+        })
+        .eq('contact_id', contactId);
+  }
+
   Future<void> removeContact(String contactId) async {
     await _client.from('trusted_contacts').delete().eq('contact_id', contactId);
   }

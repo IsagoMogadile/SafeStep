@@ -137,7 +137,7 @@ class _StudentHomeShellState extends State<StudentHomeShell> {
           .eq('student_id', userId)
           .not('status', 'in', '(new)');
       if (lastSeen != null) {
-        alertQuery = alertQuery.gt('created_at', lastSeen.toIso8601String());
+        alertQuery = alertQuery.gt('triggered_at', lastSeen.toIso8601String());
       }
       total += (await alertQuery.count(CountOption.exact)).count;
 
@@ -217,6 +217,8 @@ class _StudentHomeShellState extends State<StudentHomeShell> {
                 campusName: campusName,
                 pendingInvitesFuture: _pendingInvitesFuture,
                 onOpenPendingInvites: _openCompanionInvites,
+                unreadAlertsFuture: _unreadAlertsFuture,
+                onOpenAlerts: _openAlerts,
               ),
               const MapTab(),
               const ProfileTab(),

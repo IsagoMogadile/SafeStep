@@ -39,7 +39,7 @@ class AlertStatusPoller {
           .from('alerts')
           .select('alert_id, status, alert_type')
           .eq('student_id', studentId)
-          .order('created_at', ascending: false)
+          .order('triggered_at', ascending: false)
           .limit(10);
     } catch (_) {
       return; // offline or transient error — just try again next tick

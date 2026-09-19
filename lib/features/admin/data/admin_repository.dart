@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
@@ -22,25 +23,38 @@ class AdminRepository {
   // every call site) so instrumenting a method never requires touching the
   // widgets that call it.
 
+  // Deliberately swallows its own failures: audit logging is a secondary
+  // side-effect of a real action (creating a zone, resolving an alert,
+  // ...), and every one of the 20+ call sites below awaits this — if
+  // logging itself threw, the real action it's attached to would appear
+  // to fail even though it already succeeded (e.g. the zone/resource/
+  // alert write happens first, then this runs). That already happened
+  // once during QA: the audit_logs table didn't exist yet in the
+  // database, so this failing was on track to silently break unrelated,
+  // already-working admin actions.
   Future<void> _logAction({
     required String action,
     String? targetType,
     String? targetId,
     String? details,
   }) async {
-    final admin = await _client
-        .from('admins')
-        .select('admin_id, full_name')
-        .eq('user_id', _client.auth.currentUser!.id)
-        .maybeSingle();
-    await _client.from('audit_logs').insert({
-      'admin_id': admin?['admin_id'],
-      'admin_name': admin?['full_name'] as String? ?? 'Unknown admin',
-      'action': action,
-      'target_type': targetType,
-      'target_id': targetId,
-      'details': details,
-    });
+    try {
+      final admin = await _client
+          .from('admins')
+          .select('admin_id, full_name')
+          .eq('user_id', _client.auth.currentUser!.id)
+          .maybeSingle();
+      await _client.from('audit_logs').insert({
+        'admin_id': admin?['admin_id'],
+        'admin_name': admin?['full_name'] as String? ?? 'Unknown admin',
+        'action': action,
+        'target_type': targetType,
+        'target_id': targetId,
+        'details': details,
+      });
+    } catch (e) {
+      debugPrint('Audit log write failed (action: $action): $e');
+    }
   }
 
   Future<List<Map<String, dynamic>>> fetchAuditLogs({int limit = 300}) async {
@@ -435,7 +449,7 @@ class AdminRepository {
   }
 
   Future<void> rejectResource(String resourceId) async {
-    await _client.from('resources').delete().eq('resource_id', resourceId);
+    await _deleteResourceRow(resourceId);
     await _logAction(
       action: 'resource.reject',
       targetType: 'resource',
@@ -444,8 +458,25 @@ class AdminRepository {
     );
   }
 
-  Future<void> deleteResource(String resourceId) {
-    return _client.from('resources').delete().eq('resource_id', resourceId);
+  Future<void> deleteResource(String resourceId) => _deleteResourceRow(resourceId);
+
+  /// A Supabase `.delete()` that RLS blocks doesn't error — it just
+  /// deletes zero rows and still returns HTTP 200, which looks identical
+  /// to success unless you check what actually came back. Found this the
+  /// hard way: the resources DELETE policy was missing entirely, so
+  /// "Delete guidance"/"Reject" silently did nothing for every admin.
+  /// `.select()` after `.delete()` returns the rows that were actually
+  /// removed, so an empty result here is a real, detectable failure
+  /// rather than a silent no-op.
+  Future<void> _deleteResourceRow(String resourceId) async {
+    final deleted = await _client
+        .from('resources')
+        .delete()
+        .eq('resource_id', resourceId)
+        .select();
+    if (deleted.isEmpty) {
+      throw Exception('Delete did not remove any row — check permissions');
+    }
   }
 
   // ---- incident reports ----------------------------------------------
@@ -589,3 +620,4 @@ class AdminRepository {
           : 'Rejected a Safe Ride offense report',
     );
   }
+}

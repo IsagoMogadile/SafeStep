@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../../core/location/location_service.dart';
+import '../../../../core/location/route_service.dart';
 import '../../../../core/supabase/supabase_service.dart';
 import '../../data/walk_session_repository.dart';
 import 'walk_active_screen.dart';
@@ -25,6 +27,7 @@ class _WalkTimerScreenState extends State<WalkTimerScreen> {
   double? _startLng;
   bool _isLocating = false;
   bool _isSubmitting = false;
+  bool _isEstimating = false;
   String? _errorMessage;
 
   @override
@@ -68,6 +71,59 @@ class _WalkTimerScreenState extends State<WalkTimerScreen> {
           ),
         ),
       );
+    }
+  }
+
+  /// Auto-fills the timer from a real walking-route estimate instead of
+  /// leaving the student to guess a number of minutes — feedback:
+  /// "students don't have to manually add estimated time." Still just
+  /// fills the field; they can override it afterward same as before.
+  Future<void> _estimateTimer() async {
+    if (_destinationController.text.trim().isEmpty) {
+      setState(() => _errorMessage = 'Enter a destination first');
+      return;
+    }
+    setState(() {
+      _isEstimating = true;
+      _errorMessage = null;
+    });
+    try {
+      var origin = (_startLat != null && _startLng != null)
+          ? LatLng(_startLat!, _startLng!)
+          : null;
+      if (origin == null) {
+        final position = await LocationService.getCurrentLocation();
+        if (position != null) {
+          origin = LatLng(position.latitude, position.longitude);
+        }
+      }
+      if (origin == null) {
+        setState(() => _errorMessage = "Couldn't get your location to estimate from");
+        return;
+      }
+
+      final destination = await RouteService.geocode(_destinationController.text.trim());
+      if (destination == null) {
+        setState(() => _errorMessage = "Couldn't find that destination");
+        return;
+      }
+
+      final minutes = await RouteService.estimateDurationMinutes(
+        origin,
+        destination,
+        profile: 'foot',
+      );
+      if (minutes == null) {
+        setState(() => _errorMessage = "Couldn't estimate a time for that route");
+        return;
+      }
+      // OSRM assumes brisk, uninterrupted walking — real walks run longer
+      // (crossings, pace at night), so pad the raw estimate rather than
+      // risk the missed-check-in escalation firing on a normal walk.
+      const safetyBufferMinutes = 5;
+      setState(() => _timerController.text = (minutes + safetyBufferMinutes).toString());
+    } finally {
+      if (mounted) setState(() => _isEstimating = false);
     }
   }
 
@@ -152,15 +208,38 @@ class _WalkTimerScreenState extends State<WalkTimerScreen> {
                 TextFormField(
                   controller: _timerController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Timer (minutes)',
-                    prefixIcon: Icon(Icons.timer_outlined),
+                    prefixIcon: const Icon(Icons.timer_outlined),
+                    suffixIcon: _isEstimating
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : IconButton(
+                            icon: const Icon(Icons.directions_walk),
+                            tooltip: 'Estimate from walking route',
+                            onPressed: _estimateTimer,
+                          ),
                   ),
                   validator: (value) {
                     final n = int.tryParse(value ?? '');
                     if (n == null || n <= 0) return 'Enter minutes as a number';
                     return null;
                   },
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Tap the walking icon to estimate this from a real route '
+                  '(plus a 5 min buffer) instead of guessing — you can still '
+                  'adjust it after.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 20),
                 Text(

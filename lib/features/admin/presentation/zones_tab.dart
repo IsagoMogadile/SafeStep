@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../data/admin_repository.dart';
 import '../domain/admin_enums.dart';
 import 'widgets/admin_async_error.dart';
 import 'widgets/location_picker_map.dart';
+
+const _summerstrandCenter = LatLng(-33.9836, 25.6649);
 
 /// scope.md §7 "Manage zones": create/edit on-campus + Summerstrand
 /// zones, risk status, which org(s) cover each.
@@ -19,6 +23,7 @@ class _ZonesTabState extends State<ZonesTab> {
   final _repository = AdminRepository();
   late Future<List<Map<String, dynamic>>> _zonesFuture;
   late Future<List<Map<String, dynamic>>> _campusesFuture;
+  Map<String, dynamic>? _selectedZone;
 
   @override
   void initState() {
@@ -219,50 +224,114 @@ class _ZonesTabState extends State<ZonesTab> {
           return AdminAsyncError(error: snapshot.error!, onRetry: _refresh);
         }
         final zones = snapshot.data ?? [];
-        return ListView(
-          padding: const EdgeInsets.all(24),
+        // Map-only, and deliberately just danger zones: showing every
+        // zone as its own pin got too cluttered to actually interact
+        // with — feedback: "too many pins ... just red circles for
+        // danger zones, completely remove the zone names, just the map."
+        final dangerZones = zones
+            .where((z) =>
+                z['lat'] != null &&
+                z['lng'] != null &&
+                z['risk_status'] == 'high')
+            .toList();
+
+        return Stack(
           children: [
-            Align(
-              alignment: Alignment.centerRight,
+            FlutterMap(
+              options: MapOptions(
+                initialCenter: _summerstrandCenter,
+                initialZoom: 13,
+                onTap: (_, _) => setState(() => _selectedZone = null),
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate:
+                      'https://server.arcgisonline.com/ArcGIS/rest/services/'
+                      'World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+                ),
+                CircleLayer(
+                  circles: [
+                    for (final zone in dangerZones)
+                      CircleMarker(
+                        point: LatLng(
+                          (zone['lat'] as num).toDouble(),
+                          (zone['lng'] as num).toDouble(),
+                        ),
+                        radius: 120,
+                        useRadiusInMeter: true,
+                        color: AppColors.alert.withValues(alpha: 0.22),
+                        borderStrokeWidth: 2,
+                        borderColor: AppColors.alert,
+                      ),
+                  ],
+                ),
+                MarkerLayer(
+                  markers: [
+                    for (final zone in dangerZones)
+                      Marker(
+                        point: LatLng(
+                          (zone['lat'] as num).toDouble(),
+                          (zone['lng'] as num).toDouble(),
+                        ),
+                        width: 36,
+                        height: 36,
+                        child: GestureDetector(
+                          onTap: () => setState(() => _selectedZone = zone),
+                          child: const Icon(
+                            Icons.warning_rounded,
+                            size: 28,
+                            color: AppColors.alert,
+                            shadows: [Shadow(color: Colors.black45, blurRadius: 4)],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+            Positioned(
+              top: 16,
+              right: 16,
               child: FilledButton.icon(
                 onPressed: () => _openZoneForm(),
                 icon: const Icon(Icons.add_location_alt_outlined),
                 label: const Text('Create zone'),
               ),
             ),
-            const SizedBox(height: 16),
-            for (final zone in zones)
-              Card(
-                margin: const EdgeInsets.only(bottom: 10),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: riskColor(
-                      zone['risk_status'] as String,
-                    ).withValues(alpha: 0.15),
-                    child: Icon(
-                      Icons.location_on_outlined,
-                      color: riskColor(zone['risk_status'] as String),
+            if (_selectedZone != null)
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 16,
+                child: Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning_rounded, color: AppColors.alert),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Covered by ${coverageLabel(_selectedZone!['covered_by'] as String)}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.edit_outlined),
+                          tooltip: 'Edit',
+                          onPressed: () => _openZoneForm(existing: _selectedZone),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          tooltip: 'Delete',
+                          onPressed: () => _confirmDelete(_selectedZone!),
+                        ),
+                      ],
                     ),
-                  ),
-                  title: Text(zone['name'] as String),
-                  subtitle: Text(
-                    '${areaTypeLabel(zone['area_type'] as String)} · '
-                    '${(zone['campuses'] as Map?)?['name'] ?? 'Off campus'} · '
-                    '${riskLabel(zone['risk_status'] as String)} risk · '
-                    'Covered by ${coverageLabel(zone['covered_by'] as String)}',
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined),
-                        onPressed: () => _openZoneForm(existing: zone),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: () => _confirmDelete(zone),
-                      ),
-                    ],
                   ),
                 ),
               ),

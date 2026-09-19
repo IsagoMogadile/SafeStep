@@ -95,6 +95,70 @@ class _OverviewTabState extends State<OverviewTab> {
                   ),
                 ],
               ),
+              const SizedBox(height: 32),
+              Text('Manage', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                children: [
+                  _NavTile(
+                    icon: Icons.campaign_outlined,
+                    label: 'Active Alerts',
+                    onTap: () => widget.onNavigateToSection(1),
+                  ),
+                  _NavTile(
+                    icon: Icons.badge_outlined,
+                    label: 'Responders & Admins',
+                    onTap: () => widget.onNavigateToSection(2),
+                  ),
+                  _NavTile(
+                    icon: Icons.map_outlined,
+                    label: 'Zones',
+                    onTap: () => widget.onNavigateToSection(3),
+                  ),
+                  _NavTile(
+                    icon: Icons.campaign_outlined,
+                    label: 'Safety Broadcasts',
+                    onTap: () => widget.onNavigateToSection(4),
+                  ),
+                  _NavTile(
+                    icon: Icons.menu_book_outlined,
+                    label: 'Resources',
+                    onTap: () => widget.onNavigateToSection(5),
+                  ),
+                  _NavTile(
+                    icon: Icons.report_outlined,
+                    label: 'Incident Reports',
+                    onTap: () => widget.onNavigateToSection(6),
+                  ),
+                  _NavTile(
+                    icon: Icons.directions_car_outlined,
+                    label: 'Safe Ride Reports',
+                    onTap: () => widget.onNavigateToSection(7),
+                  ),
+                  _NavTile(
+                    icon: Icons.groups_outlined,
+                    label: 'Walking Groups',
+                    onTap: () => widget.onNavigateToSection(8),
+                  ),
+                  _NavTile(
+                    icon: Icons.call_outlined,
+                    label: 'Emergency Contacts',
+                    onTap: () => widget.onNavigateToSection(9),
+                  ),
+                  _NavTile(
+                    icon: Icons.school_outlined,
+                    label: 'Students',
+                    onTap: () => widget.onNavigateToSection(10),
+                  ),
+                  _NavTile(
+                    icon: Icons.history_outlined,
+                    label: 'Audit Logs',
+                    onTap: () => widget.onNavigateToSection(11),
+                  ),
+                ],
+              ),
             ],
           );
         },
@@ -153,6 +217,37 @@ class _StatCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(label, style: Theme.of(context).textTheme.bodyMedium),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NavTile extends StatelessWidget {
+  const _NavTile({required this.icon, required this.label, required this.onTap});
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: 160,
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        decoration: BoxDecoration(
+          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 28, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: 12),
+            Text(label, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
           ],
         ),
       ),

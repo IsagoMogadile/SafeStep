@@ -29,8 +29,16 @@ class _SafeRideReportsTabState extends State<SafeRideReportsTab> {
   void _refresh() => setState(() { _future = _repository.fetchPendingSafeRideReports(); });
 
   Future<void> _reject(String offenseId) async {
-    await _repository.resolveSafeRideReport(offenseId, approve: false);
-    _refresh();
+    try {
+      await _repository.resolveSafeRideReport(offenseId, approve: false);
+      _refresh();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Couldn't reject this report. Try again.")),
+        );
+      }
+    }
   }
 
   Future<void> _openApproveDialog(Map<String, dynamic> report) async {
@@ -83,13 +91,21 @@ class _SafeRideReportsTabState extends State<SafeRideReportsTab> {
     );
     if (confirmed != true) return;
 
-    await _repository.resolveSafeRideReport(
-      report['offense_id'] as String,
-      approve: true,
-      severity: severity,
-      needsIntervention: needsIntervention,
-    );
-    _refresh();
+    try {
+      await _repository.resolveSafeRideReport(
+        report['offense_id'] as String,
+        approve: true,
+        severity: severity,
+        needsIntervention: needsIntervention,
+      );
+      _refresh();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Couldn't approve this report. Try again.")),
+        );
+      }
+    }
   }
 
   @override
