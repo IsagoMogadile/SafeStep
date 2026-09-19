@@ -217,6 +217,8 @@ class _StudentHomeShellState extends State<StudentHomeShell> {
                 campusName: campusName,
                 pendingInvitesFuture: _pendingInvitesFuture,
                 onOpenPendingInvites: _openCompanionInvites,
+                unreadAlertsFuture: _unreadAlertsFuture,
+                onOpenAlerts: _openAlerts,
               ),
               const MapTab(),
               const ProfileTab(),

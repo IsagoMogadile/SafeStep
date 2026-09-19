@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart';
 
+import '../../../core/location/location_service.dart';
+import '../../../core/location/route_service.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/safe_ride_repository.dart';
@@ -40,18 +43,63 @@ class SafeRideScreen extends StatefulWidget {
 class _SafeRideScreenState extends State<SafeRideScreen> {
   final _repository = SafeRideRepository();
   final _plateController = TextEditingController();
+  final _destinationController = TextEditingController();
   final _textRecognizer = TextRecognizer();
   bool _isChecking = false;
   bool _isScanning = false;
+  bool _isEstimatingDrive = false;
   bool _hasChecked = false;
   Map<String, dynamic>? _record;
   String? _errorMessage;
+  int? _driveMinutes;
+  String? _driveEstimateError;
 
   @override
   void dispose() {
     _plateController.dispose();
+    _destinationController.dispose();
     _textRecognizer.close();
     super.dispose();
+  }
+
+  /// Informational only — no journey tracking, no check-ins, just "about
+  /// how long is this drive" so the student has context, same idea as
+  /// the walking-time estimate in Safe Walks but for a car.
+  Future<void> _estimateDriveTime() async {
+    if (_destinationController.text.trim().isEmpty) {
+      setState(() => _driveEstimateError = 'Enter a destination first');
+      return;
+    }
+    setState(() {
+      _isEstimatingDrive = true;
+      _driveEstimateError = null;
+      _driveMinutes = null;
+    });
+    try {
+      final position = await LocationService.getCurrentLocation();
+      if (position == null) {
+        setState(() => _driveEstimateError = "Couldn't get your current location");
+        return;
+      }
+      final origin = LatLng(position.latitude, position.longitude);
+      final destination = await RouteService.geocode(_destinationController.text.trim());
+      if (destination == null) {
+        setState(() => _driveEstimateError = "Couldn't find that destination");
+        return;
+      }
+      final minutes = await RouteService.estimateDurationMinutes(
+        origin,
+        destination,
+        profile: 'driving',
+      );
+      if (minutes == null) {
+        setState(() => _driveEstimateError = "Couldn't estimate a drive time for that route");
+        return;
+      }
+      setState(() => _driveMinutes = minutes);
+    } finally {
+      if (mounted) setState(() => _isEstimatingDrive = false);
+    }
   }
 
   Future<void> _scanPlate() async {
@@ -194,6 +242,56 @@ class _SafeRideScreenState extends State<SafeRideScreen> {
                 Text(
                   _errorMessage!,
                   style: TextStyle(color: colorScheme.error),
+                ),
+              ],
+              const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 12),
+              Text('Estimate drive time', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 4),
+              Text(
+                'Informational only — not tracked, no check-ins.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _destinationController,
+                decoration: InputDecoration(
+                  labelText: 'Destination (optional)',
+                  prefixIcon: const Icon(Icons.flag_outlined),
+                  suffixIcon: _isEstimatingDrive
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.directions_car),
+                          tooltip: 'Estimate drive time',
+                          onPressed: _estimateDriveTime,
+                        ),
+                ),
+                onSubmitted: (_) => _estimateDriveTime(),
+              ),
+              if (_driveEstimateError != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _driveEstimateError!,
+                  style: TextStyle(color: colorScheme.error),
+                ),
+              ],
+              if (_driveMinutes != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  '~$_driveMinutes min drive from your current location',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
               if (_hasChecked) ...[

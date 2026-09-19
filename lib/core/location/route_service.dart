@@ -67,4 +67,35 @@ class RouteService {
       return null;
     }
   }
+
+  /// Estimated travel time in whole minutes (rounded up), or null if
+  /// routing failed. `profile` is `'foot'` for walking (Safe Walks) or
+  /// `'driving'` for a car (Safe Ride) — OSRM's public demo server
+  /// already returns a `duration` (seconds) alongside the route, we just
+  /// weren't reading it before. `overview=false` skips fetching the full
+  /// geometry, which this doesn't need.
+  static Future<int?> estimateDurationMinutes(
+    LatLng origin,
+    LatLng destination, {
+    String profile = 'foot',
+  }) async {
+    final uri = Uri.parse(
+      'https://router.project-osrm.org/route/v1/$profile/'
+      '${origin.longitude},${origin.latitude};'
+      '${destination.longitude},${destination.latitude}'
+      '?overview=false',
+    );
+    try {
+      final response = await http.get(uri).timeout(const Duration(seconds: 8));
+      if (response.statusCode != 200) return null;
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (body['code'] != 'Ok') return null;
+      final routes = body['routes'] as List;
+      if (routes.isEmpty) return null;
+      final seconds = (routes.first['duration'] as num).toDouble();
+      return (seconds / 60).ceil();
+    } catch (_) {
+      return null;
+    }
+  }
 }

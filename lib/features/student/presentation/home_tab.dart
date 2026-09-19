@@ -19,11 +19,15 @@ class HomeTab extends StatelessWidget {
     required this.campusName,
     this.pendingInvitesFuture,
     this.onOpenPendingInvites,
+    this.unreadAlertsFuture,
+    this.onOpenAlerts,
   });
 
   final String? campusName;
   final Future<int>? pendingInvitesFuture;
   final VoidCallback? onOpenPendingInvites;
+  final Future<int>? unreadAlertsFuture;
+  final VoidCallback? onOpenAlerts;
 
   @override
   Widget build(BuildContext context) {
@@ -37,56 +41,69 @@ class HomeTab extends StatelessWidget {
             constraints: BoxConstraints(minHeight: constraints.maxHeight - 32),
             child: Column(
               children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 15,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.safe.withValues(alpha: 0.1),
-                    border: Border.all(
-                      color: AppColors.safe.withValues(alpha: 0.3),
-                    ),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 9,
-                        height: 9,
-                        decoration: const BoxDecoration(
-                          color: AppColors.safe,
-                          shape: BoxShape.circle,
-                        ),
+                FutureBuilder<int>(
+                  future: unreadAlertsFuture,
+                  builder: (context, snapshot) {
+                    final unread = snapshot.data ?? 0;
+                    final hasNew = unread > 0;
+                    final color = hasNew ? AppColors.alert : AppColors.safe;
+
+                    final pill = Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 15,
+                        vertical: 12,
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              campusName == null
-                                  ? 'No active alerts'
-                                  : 'No active alerts on $campusName',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.safe,
-                              ),
-                            ),
-                            Text(
-                              "You're all set",
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.1),
+                        border: Border.all(color: color.withValues(alpha: 0.3)),
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                    ],
-                  ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 9,
+                            height: 9,
+                            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  hasNew
+                                      ? '$unread new alert${unread == 1 ? '' : 's'}'
+                                      : (campusName == null
+                                          ? 'No active alerts'
+                                          : 'No active alerts on $campusName'),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: color,
+                                  ),
+                                ),
+                                Text(
+                                  hasNew ? 'Tap to view' : "You're all set",
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (!hasNew || onOpenAlerts == null) return pill;
+                    return InkWell(
+                      onTap: onOpenAlerts,
+                      borderRadius: BorderRadius.circular(14),
+                      child: pill,
+                    );
+                  },
                 ),
                 if (pendingInvitesFuture != null)
                   FutureBuilder<int>(
