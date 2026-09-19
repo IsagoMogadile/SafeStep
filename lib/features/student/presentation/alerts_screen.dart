@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/supabase/supabase_service.dart';
 import '../../../core/widgets/skeleton_loader.dart';
+import '../data/dismissed_alerts_prefs.dart';
 import '../data/safe_ride_repository.dart';
 
 /// Safety broadcasts (admin-created, distinct from panic alerts — scope.md
@@ -16,12 +18,15 @@ class AlertsScreen extends StatefulWidget {
 }
 
 class _AlertsScreenState extends State<AlertsScreen> {
-  late Future<List<Map<String, dynamic>>> _alertsFuture;
+  List<Map<String, dynamic>>? _alerts;
+  Object? _error;
+
+  static final _timeFormat = DateFormat('d MMM yyyy, HH:mm');
 
   @override
   void initState() {
     super.initState();
-    _alertsFuture = _fetchAlerts();
+    _load();
   }
 
   static const _statusLabels = {
@@ -31,8 +36,18 @@ class _AlertsScreenState extends State<AlertsScreen> {
     'false_alarm_verify': 'Marked as a possible false alarm — security will still check in',
   };
 
+  Future<void> _load() async {
+    try {
+      final alerts = await _fetchAlerts();
+      if (mounted) setState(() { _alerts = alerts; _error = null; });
+    } catch (e) {
+      if (mounted) setState(() => _error = e);
+    }
+  }
+
   Future<List<Map<String, dynamic>>> _fetchAlerts() async {
     final userId = SupabaseService.client.auth.currentUser?.id;
+    final dismissedIds = await DismissedAlertsPrefs.all();
 
     final broadcastsRows = await SupabaseService.client
         .from('safety_broadcasts')
@@ -57,16 +72,21 @@ class _AlertsScreenState extends State<AlertsScreen> {
           .not('status', 'in', '(new)')
           .order('triggered_at', ascending: false)
           .limit(20);
-      personal = List<Map<String, dynamic>>.from(ownAlertRows).map((row) {
-        final status = row['status'] as String;
-        return {
-          '_kind': 'personal_alert',
-          '_time': (row['resolved_at'] as String?) ?? row['triggered_at'] as String,
-          'title': 'Your ${row['alert_type']} alert',
-          'message': _statusLabels[status] ?? 'Status: $status',
-          'status': status,
-        };
-      });
+      personal = List<Map<String, dynamic>>.from(ownAlertRows)
+          .where((row) => !dismissedIds.contains(row['alert_id'] as String))
+          .map((row) {
+            final status = row['status'] as String;
+            return {
+              '_kind': 'personal_alert',
+              'id': row['alert_id'] as String,
+              '_time': (row['resolved_at'] as String?) ?? row['triggered_at'] as String,
+              'title': 'Your ${row['alert_type']} alert',
+              'message': _statusLabels[status] ?? 'Status: $status',
+              'status': status,
+              'triggeredAt': row['triggered_at'] as String,
+              'resolvedAt': row['resolved_at'] as String?,
+            };
+          });
     }
 
     var safeRideReports = const Iterable<Map<String, dynamic>>.empty();
@@ -92,9 +112,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
     return combined;
   }
 
-  Future<void> _refresh() async {
-    setState(() { _alertsFuture = _fetchAlerts(); });
-  }
+  Future<void> _refresh() => _load();
 
   (Color, IconData) _styleFor(String? level) {
     return switch (level) {
@@ -102,6 +120,72 @@ class _AlertsScreenState extends State<AlertsScreen> {
       'caution' => (AppColors.caution, Icons.warning_amber_rounded),
       _ => (AppColors.seed, Icons.info_outline),
     };
+  }
+
+  void _openDetail(Map<String, dynamic> alert, Color color, IconData icon, String chipLabel) {
+    final kind = alert['_kind'] as String;
+    final title = alert['title'] as String? ?? '';
+    final message = alert['message'] as String? ?? '';
+
+    String timeLabel;
+    if (kind == 'personal_alert') {
+      final triggered = _timeFormat.format(DateTime.parse(alert['triggeredAt'] as String).toLocal());
+      final resolvedAtRaw = alert['resolvedAt'] as String?;
+      timeLabel = resolvedAtRaw == null
+          ? 'Triggered $triggered'
+          : 'Triggered $triggered · Resolved '
+                '${_timeFormat.format(DateTime.parse(resolvedAtRaw).toLocal())}';
+    } else {
+      final time = _timeFormat.format(DateTime.parse(alert['_time'] as String).toLocal());
+      timeLabel = kind == 'broadcast' ? 'Sent $time' : 'Reviewed $time';
+    }
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: color.withValues(alpha: 0.15),
+                      child: Icon(icon, color: color),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Chip(
+                  label: Text(chipLabel),
+                  labelStyle: TextStyle(fontSize: 11, color: color),
+                  backgroundColor: color.withValues(alpha: 0.12),
+                  visualDensity: VisualDensity.compact,
+                ),
+                const SizedBox(height: 16),
+                Text(message, style: Theme.of(context).textTheme.bodyLarge),
+                const SizedBox(height: 16),
+                Text(
+                  timeLabel,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.outline),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -112,10 +196,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
       appBar: AppBar(title: const Text('Safety Alerts')),
       body: RefreshIndicator(
         onRefresh: _refresh,
-        child: FutureBuilder<List<Map<String, dynamic>>>(
-          future: _alertsFuture,
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
+        child: Builder(
+          builder: (context) {
+            if (_error != null) {
               return ListView(
                 children: [
                   Padding(
@@ -134,10 +217,10 @@ class _AlertsScreenState extends State<AlertsScreen> {
                 ],
               );
             }
-            if (!snapshot.hasData) {
+            if (_alerts == null) {
               return const SkeletonList();
             }
-            final alerts = snapshot.data!;
+            final alerts = _alerts!;
             if (alerts.isEmpty) {
               return ListView(
                 children: [
@@ -179,20 +262,55 @@ class _AlertsScreenState extends State<AlertsScreen> {
                 final chipLabel = kind == 'broadcast'
                     ? (alert['level'] as String? ?? '').toUpperCase()
                     : (alert['status'] as String).toUpperCase();
-                return ListTile(
+
+                final tile = ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: CircleAvatar(
                     backgroundColor: color.withValues(alpha: 0.15),
                     child: Icon(icon, color: color, size: 18),
                   ),
                   title: Text(alert['title'] as String? ?? ''),
-                  subtitle: Text(alert['message'] as String? ?? ''),
-                  trailing: Chip(
-                    label: Text(chipLabel),
-                    labelStyle: TextStyle(fontSize: 10, color: color),
-                    backgroundColor: color.withValues(alpha: 0.12),
-                    visualDensity: VisualDensity.compact,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Chip(
+                        label: Text(chipLabel),
+                        labelStyle: TextStyle(fontSize: 10, color: color),
+                        backgroundColor: color.withValues(alpha: 0.12),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(Icons.chevron_right, size: 18, color: colorScheme.outline),
+                    ],
                   ),
+                  onTap: () => _openDetail(alert, color, icon, chipLabel),
+                );
+
+                // Only a student's own alert history can be swiped away —
+                // admin broadcasts stay put, since they aren't this
+                // student's to delete.
+                if (kind != 'personal_alert') {
+                  return KeyedSubtree(
+                    key: ValueKey('${kind}_${alert['_time']}_${alert['title']}'),
+                    child: tile,
+                  );
+                }
+
+                final alertId = alert['id'] as String;
+                return Dismissible(
+                  key: ValueKey('personal_alert_$alertId'),
+                  direction: DismissDirection.startToEnd,
+                  background: Container(
+                    alignment: Alignment.centerLeft,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    color: colorScheme.errorContainer,
+                    child: Icon(Icons.delete_outline, color: colorScheme.onErrorContainer),
+                  ),
+                  onDismissed: (_) {
+                    setState(() => _alerts!.removeWhere((a) => a['id'] == alertId));
+                    DismissedAlertsPrefs.dismiss(alertId);
+                  },
+                  child: tile,
                 );
               },
             );
