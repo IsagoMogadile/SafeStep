@@ -21,6 +21,14 @@ class RouteService {
   // point before that person counts as "arrived" — generous enough to
   // absorb normal phone GPS drift outdoors.
   static const meetingArrivalRadiusMeters = 40.0;
+  // A "meet halfway" point only makes sense at walking distance. If the
+  // walker and companion are farther apart than this (a genuine mismatch,
+  // or two test devices in different towns), the midpoint would be just
+  // as far from both of them and useless to walk to — worse, the map
+  // trying to fit both ends up zoomed out enough to show mostly bare
+  // tile/terrain with a single line across it, which reads as broken
+  // rather than "you're too far apart for this feature."
+  static const maxMeetingPointDistanceMeters = 3000.0;
   // Real paths aren't straight lines — pad the raw distance so a
   // straight-line fallback estimate doesn't undershoot a routed one.
   static const _straightLineDetourFactor = 1.3;

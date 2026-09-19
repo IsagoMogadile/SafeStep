@@ -9,6 +9,7 @@ import '../../../core/supabase/supabase_service.dart';
 import '../../../core/theme/theme_controller.dart';
 import '../../auth/presentation/welcome_screen.dart';
 import 'notification_preferences_screen.dart';
+import 'practice_sos_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -241,6 +242,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
               MaterialPageRoute(
                 builder: (_) => const NotificationPreferencesScreen(),
               ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text('Safety', style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 8),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.shield_outlined),
+            title: const Text('Practice emergency alert'),
+            subtitle: const Text('Try the SOS hold without actually sending anything'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PracticeSosScreen()),
             ),
           ),
           if (_biometricSupported) ...[

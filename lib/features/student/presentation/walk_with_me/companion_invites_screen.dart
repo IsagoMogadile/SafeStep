@@ -61,10 +61,21 @@ class _CompanionInvitesScreenState extends State<CompanionInvitesScreen> {
       final walkerLat = (invite['current_lat'] ?? invite['start_lat']) as num?;
       final walkerLng = (invite['current_lng'] ?? invite['start_lng']) as num?;
       if (walkerLat != null && walkerLng != null) {
-        meetingPoint = RouteService.midpoint(
-          LatLng(walkerLat.toDouble(), walkerLng.toDouble()),
-          LatLng(companionPosition.latitude, companionPosition.longitude),
-        );
+        final walkerPoint = LatLng(walkerLat.toDouble(), walkerLng.toDouble());
+        final companionPoint = LatLng(companionPosition.latitude, companionPosition.longitude);
+        if (RouteService.distanceMeters(walkerPoint, companionPoint) <=
+            RouteService.maxMeetingPointDistanceMeters) {
+          meetingPoint = RouteService.midpoint(walkerPoint, companionPoint);
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                "You and your friend are too far apart for a shared meeting point — "
+                "you'll watch their journey straight to the destination instead.",
+              ),
+            ),
+          );
+        }
       }
     }
 

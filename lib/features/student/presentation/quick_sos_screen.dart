@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_theme.dart';
 import 'widgets/sos_activation.dart';
-import 'widgets/sos_hold_button.dart';
+import 'widgets/sos_tap_button.dart';
 
 /// Landing screen when SafeStep is launched from the home-screen SOS
-/// widget — skips Home entirely so the only thing between tapping the
-/// widget and the same 3-second hold-to-confirm flow used everywhere
-/// else in the app is this one screen. Still deliberate-hold, not a
-/// one-tap trigger (scope.md §5), so a pocket-tap on the widget can't
-/// fire a false alert on its own.
+/// widget — skips Home entirely. Unlike the Home tab's 3-second
+/// hold-to-confirm [SosHoldButton], this uses [SosTapButton] (a single
+/// tap) — reaching this screen already meant deliberately finding and
+/// tapping the widget itself, so the extra hold mainly costs time a
+/// rushed or coerced student may not have. To make that trade-off feel
+/// right, this screen reads unmistakably as an emergency control (red,
+/// bold, explicit) — the discreet, blend-in styling belongs to the
+/// widget tile on the home screen, not to this already-deliberate
+/// confirmation step.
 class QuickSosScreen extends StatelessWidget {
   const QuickSosScreen({super.key});
 
@@ -24,22 +29,24 @@ class QuickSosScreen extends StatelessWidget {
           child: Column(
             children: [
               const Spacer(),
-              Icon(Icons.shield_outlined, size: 40, color: colorScheme.outline),
+              const Icon(Icons.warning_rounded, size: 48, color: AppColors.alert),
               const SizedBox(height: 12),
               Text(
-                'Launched from the SafeStep widget',
+                'Emergency SOS',
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(color: AppColors.alert, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Text(
-                'Hold the button below to alert responders covering your '
-                'zone and your trusted contacts with your location.',
+                'Tap the button below to instantly alert responders covering '
+                'your zone and your trusted contacts with your location.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: colorScheme.onSurfaceVariant),
               ),
               const Spacer(),
-              SosHoldButton(onActivated: () => handleSosActivated(context)),
+              SosTapButton(onActivated: () => handleSosActivated(context)),
               const SizedBox(height: 12),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),

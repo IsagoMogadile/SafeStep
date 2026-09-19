@@ -4,11 +4,18 @@ import 'package:flutter/foundation.dart';
 
 import '../../features/auth/data/trusted_contact_repository.dart';
 import '../../features/student/data/alert_repository.dart';
+import '../notifications/notification_service.dart';
 import '../storage/storage_uploader.dart';
 import '../supabase/supabase_service.dart';
 import 'pending_alert_queue.dart';
 import 'pending_contact_queue.dart';
 import 'pending_report_queue.dart';
+
+const _alertTypeLabels = {
+  'panic': 'Your emergency alert',
+  'silent': 'Your silent alert',
+  'walk_escalation': 'Your Safe Walks alert',
+};
 
 /// Replays everything queued while offline (see the `pending_*_queue.dart`
 /// files) once a connection is available again — the "Pending Sync" →
@@ -51,6 +58,11 @@ class SyncManager {
           overrideTriggeredAtIso: item['triggered_at'] as String,
         );
         await PendingAlertQueue.removeById(item['local_id'] as String);
+        final label = _alertTypeLabels[item['alert_type']] ?? 'Your alert';
+        await NotificationService.instance.showOfflineSyncNotification(
+          title: 'Alert sent',
+          body: '$label from earlier has now reached responders and your trusted contacts.',
+        );
       } catch (e) {
         debugPrint('SyncManager: alert sync failed, will retry later — $e');
       }
@@ -83,6 +95,10 @@ class SyncManager {
           'status': 'new',
         });
         await PendingReportQueue.removeById(item['local_id'] as String);
+        await NotificationService.instance.showOfflineSyncNotification(
+          title: 'Report sent',
+          body: 'Your incident report saved while offline has now been submitted.',
+        );
       } catch (e) {
         debugPrint('SyncManager: report sync failed, will retry later — $e');
       }
@@ -100,6 +116,11 @@ class SyncManager {
           phone: item['phone'] as String?,
         );
         await PendingContactQueue.removeById(item['local_id'] as String);
+        await NotificationService.instance.showOfflineSyncNotification(
+          title: 'Contact added',
+          body: '${item['name']} was saved while offline and has now been added to your '
+              'trusted contacts.',
+        );
       } catch (e) {
         debugPrint('SyncManager: contact sync failed, will retry later — $e');
       }

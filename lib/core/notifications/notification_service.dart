@@ -26,6 +26,9 @@ class NotificationService {
   static const _monitoredJourneyChannelId = 'monitored_journeys';
   int _monitoredJourneyNotificationId = 3001;
 
+  static const _offlineSyncChannelId = 'offline_sync';
+  int _offlineSyncNotificationId = 4001;
+
   final _plugin = FlutterLocalNotificationsPlugin();
   void Function(String actionId)? onAction;
   bool _initialized = false;
@@ -132,6 +135,31 @@ class NotificationService {
     );
     await _plugin.show(
       _monitoredJourneyNotificationId++,
+      title,
+      body,
+      const NotificationDetails(android: details),
+    );
+  }
+
+  /// Closes the loop on anything [SyncManager] replayed after being
+  /// queued offline (an alert, an incident report, a trusted contact) —
+  /// without this, a student who triggered SOS with no connection would
+  /// never actually learn whether it went through once they reconnected.
+  Future<void> showOfflineSyncNotification({
+    required String title,
+    required String body,
+  }) async {
+    const details = AndroidNotificationDetails(
+      _offlineSyncChannelId,
+      'Offline sync updates',
+      channelDescription:
+          'Confirms something saved while offline (an alert, report, or '
+          'contact) has now actually been sent',
+      importance: Importance.high,
+      priority: Priority.high,
+    );
+    await _plugin.show(
+      _offlineSyncNotificationId++,
       title,
       body,
       const NotificationDetails(android: details),
