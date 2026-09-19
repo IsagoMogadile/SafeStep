@@ -16,14 +16,27 @@ class TrustedContactRepository {
         .order('created_at');
   }
 
-  /// Auto-links a contact to an existing SafeStep account by email or
-  /// phone (scope.md §5) via the `find_student_by_contact` RPC
+  /// The `find_student_by_contact` RPC lookup
   /// (supabase/migrations/0001_phone_and_contact_lookup.sql) — a narrow
   /// SECURITY DEFINER function that only ever returns a single
   /// student_id, never a full row, so it's safe to expose to any
-  /// authenticated user despite bypassing student-row RLS. Falls back to
-  /// `sms_only` if the migration hasn't been applied yet (RPC missing) or
-  /// no match is found.
+  /// authenticated user despite bypassing student-row RLS. Returns null
+  /// if the migration hasn't been applied yet (RPC missing) or no match
+  /// is found. Shared by addContact/updateContact (to decide the saved
+  /// status) and by the Add/Edit sheet's live "app linked?" check.
+  Future<String?> findLinkedStudentId({String? email, String? phone}) async {
+    try {
+      return await _client.rpc(
+        'find_student_by_contact',
+        params: {'p_email': email, 'p_phone': phone},
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Auto-links a contact to an existing SafeStep account by email or
+  /// phone (scope.md §5).
   Future<void> addContact({
     required String studentId,
     required String name,
@@ -31,15 +44,7 @@ class TrustedContactRepository {
     String? email,
     String? phone,
   }) async {
-    String? linkedStudentId;
-    try {
-      linkedStudentId = await _client.rpc(
-        'find_student_by_contact',
-        params: {'p_email': email, 'p_phone': phone},
-      );
-    } catch (_) {
-      // Migration not applied yet, or no match — fall back below.
-    }
+    final linkedStudentId = await findLinkedStudentId(email: email, phone: phone);
 
     await _client.from('trusted_contacts').insert({
       'student_id': studentId,
@@ -63,15 +68,7 @@ class TrustedContactRepository {
     String? email,
     String? phone,
   }) async {
-    String? linkedStudentId;
-    try {
-      linkedStudentId = await _client.rpc(
-        'find_student_by_contact',
-        params: {'p_email': email, 'p_phone': phone},
-      );
-    } catch (_) {
-      // Migration not applied yet, or no match — fall back below.
-    }
+    final linkedStudentId = await findLinkedStudentId(email: email, phone: phone);
 
     await _client
         .from('trusted_contacts')
