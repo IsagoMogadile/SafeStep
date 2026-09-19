@@ -20,11 +20,27 @@ class ResponderRepository {
     return _client
         .from('responders')
         .select(
-          'responder_id, full_name, organization, coverage_zone_id, '
+          'responder_id, full_name, organization, coverage_zone_id, status, '
           'zones(name, lat, lng)',
         )
         .eq('user_id', userId)
         .maybeSingle();
+  }
+
+  /// Lightweight re-check of just the account status, used to poll for an
+  /// admin deactivating this responder mid-session (scope.md §7
+  /// "Deactivate/reactivate accounts") — a Supabase session otherwise stays
+  /// valid and the app keeps working normally until it's told to stop.
+  /// This app has no realtime subscription set up anywhere (see
+  /// WalkSessionRepository), so a short poll is the established way of
+  /// picking up a server-side change like this.
+  Future<String?> fetchStatus(String responderId) async {
+    final row = await _client
+        .from('responders')
+        .select('status')
+        .eq('responder_id', responderId)
+        .maybeSingle();
+    return row?['status'] as String?;
   }
 
   Future<List<Map<String, dynamic>>> fetchOpenAlerts(String responderId) async {
