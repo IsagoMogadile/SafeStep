@@ -76,6 +76,46 @@ class AdminRepository {
         .maybeSingle();
   }
 
+  /// The Overview dashboard's "Today at a glance" strip. Pending
+  /// approvals folds walking groups and community resources awaiting
+  /// review into one number — the two "Manage" tiles it fans back out to
+  /// on tap already break it down.
+  Future<Map<String, int>> fetchQuickStats() async {
+    final activeAlerts = await _client
+        .from('alerts')
+        .select('alert_id')
+        .filter('status', 'in', '(new,acknowledged,dispatched)')
+        .count(CountOption.exact);
+
+    final weekAgo = DateTime.now().subtract(const Duration(days: 7)).toIso8601String();
+    final reportsThisWeek = await _client
+        .from('incident_reports')
+        .select('report_id')
+        .gte('created_at', weekAgo)
+        .count(CountOption.exact);
+
+    final pendingGroups = await _client
+        .from('walking_groups')
+        .select('group_id')
+        .eq('status', 'pending')
+        .count(CountOption.exact);
+
+    final pendingResources = await _client
+        .from('resources')
+        .select('resource_id')
+        .eq('status', 'pending_verification')
+        .count(CountOption.exact);
+
+    final students = await _client.from('students').select('student_id').count(CountOption.exact);
+
+    return {
+      'activeAlerts': activeAlerts.count,
+      'reportsThisWeek': reportsThisWeek.count,
+      'pendingApprovals': pendingGroups.count + pendingResources.count,
+      'students': students.count,
+    };
+  }
+
   // ---- alerts (admin-wide, unscoped by zone) ---------------------------
 
   Future<List<Map<String, dynamic>>> fetchAlerts() async {
