@@ -15,7 +15,7 @@ class AuthBrandingHeader extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(size * 0.28),
           child: Image.asset(
-            'assets/icon/safestep.jpg',
+            'assets/icon/safestep_logo.jpeg',
             width: size,
             height: size,
             fit: BoxFit.cover,

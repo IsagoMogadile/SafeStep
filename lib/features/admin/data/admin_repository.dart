@@ -315,12 +315,27 @@ class AdminRepository {
     return updateResource(resourceId, {'status': 'published'});
   }
 
-  Future<void> rejectResource(String resourceId) {
-    return _client.from('resources').delete().eq('resource_id', resourceId);
-  }
+  Future<void> rejectResource(String resourceId) => _deleteResourceRow(resourceId);
 
-  Future<void> deleteResource(String resourceId) {
-    return _client.from('resources').delete().eq('resource_id', resourceId);
+  Future<void> deleteResource(String resourceId) => _deleteResourceRow(resourceId);
+
+  /// A Supabase `.delete()` that RLS blocks doesn't error — it just
+  /// deletes zero rows and still returns HTTP 200, which looks identical
+  /// to success unless you check what actually came back. Found this the
+  /// hard way: the resources DELETE policy was missing entirely, so
+  /// "Delete guidance"/"Reject" silently did nothing for every admin.
+  /// `.select()` after `.delete()` returns the rows that were actually
+  /// removed, so an empty result here is a real, detectable failure
+  /// rather than a silent no-op.
+  Future<void> _deleteResourceRow(String resourceId) async {
+    final deleted = await _client
+        .from('resources')
+        .delete()
+        .eq('resource_id', resourceId)
+        .select();
+    if (deleted.isEmpty) {
+      throw Exception('Delete did not remove any row — check permissions');
+    }
   }
 
   // ---- incident reports ----------------------------------------------

@@ -52,16 +52,16 @@ class _AlertsScreenState extends State<AlertsScreen> {
     if (userId != null) {
       final ownAlertRows = await SupabaseService.client
           .from('alerts')
-          .select('alert_id, alert_type, status, created_at, resolved_at')
+          .select('alert_id, alert_type, status, triggered_at, resolved_at')
           .eq('student_id', userId)
           .not('status', 'in', '(new)')
-          .order('created_at', ascending: false)
+          .order('triggered_at', ascending: false)
           .limit(20);
       personal = List<Map<String, dynamic>>.from(ownAlertRows).map((row) {
         final status = row['status'] as String;
         return {
           '_kind': 'personal_alert',
-          '_time': (row['resolved_at'] as String?) ?? row['created_at'] as String,
+          '_time': (row['resolved_at'] as String?) ?? row['triggered_at'] as String,
           'title': 'Your ${row['alert_type']} alert',
           'message': _statusLabels[status] ?? 'Status: $status',
           'status': status,
@@ -115,6 +115,25 @@ class _AlertsScreenState extends State<AlertsScreen> {
         child: FutureBuilder<List<Map<String, dynamic>>>(
           future: _alertsFuture,
           builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return ListView(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(48),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.error_outline, size: 40, color: colorScheme.error),
+                          const SizedBox(height: 12),
+                          const Text("Couldn't load alerts. Pull down to try again."),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }
             if (!snapshot.hasData) {
               return const SkeletonList();
             }

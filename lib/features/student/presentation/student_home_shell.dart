@@ -137,7 +137,7 @@ class _StudentHomeShellState extends State<StudentHomeShell> {
           .eq('student_id', userId)
           .not('status', 'in', '(new)');
       if (lastSeen != null) {
-        alertQuery = alertQuery.gt('created_at', lastSeen.toIso8601String());
+        alertQuery = alertQuery.gt('triggered_at', lastSeen.toIso8601String());
       }
       total += (await alertQuery.count(CountOption.exact)).count;
 

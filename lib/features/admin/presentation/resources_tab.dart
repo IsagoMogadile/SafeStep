@@ -119,8 +119,16 @@ class _ResourcesTabState extends State<ResourcesTab> {
       ),
     );
     if (confirmed != true) return;
-    await _repository.deleteResource(resource['resource_id'] as String);
-    _refresh();
+    try {
+      await _repository.deleteResource(resource['resource_id'] as String);
+      _refresh();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Couldn't delete this guidance. Try again.")),
+        );
+      }
+    }
   }
 
   @override
@@ -233,8 +241,16 @@ class _ResourceCard extends StatelessWidget {
                 icon: const Icon(Icons.cancel_outlined, color: Colors.red),
                 tooltip: 'Reject',
                 onPressed: () async {
-                  await repo.rejectResource(resource['resource_id'] as String);
-                  onChanged();
+                  try {
+                    await repo.rejectResource(resource['resource_id'] as String);
+                    onChanged();
+                  } catch (_) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Couldn't reject this tip. Try again.")),
+                      );
+                    }
+                  }
                 },
               ),
             ] else ...[
