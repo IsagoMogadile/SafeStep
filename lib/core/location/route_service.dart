@@ -20,7 +20,10 @@ class RouteService {
   // Real paths aren't straight lines — pad the raw distance so a
   // straight-line fallback estimate doesn't undershoot a routed one.
   static const _straightLineDetourFactor = 1.3;
-  static const _walkingKmh = 4.5;
+  // Brisk-but-realistic pedestrian pace (an average adult's walking
+  // speed is usually put at ~5 km/h) — see estimateDurationMinutes for
+  // why this, not OSRM's own duration, drives every walking estimate.
+  static const _walkingKmh = 5.0;
   static const _drivingKmh = 30.0;
 
   /// Appending a locality hint disambiguates a short query like "Library"
@@ -110,16 +113,20 @@ class RouteService {
 
   /// Estimated travel time in whole minutes (rounded up). `profile` is
   /// `'foot'` for walking (Safe Walks) or `'driving'` for a car (Safe
-  /// Ride) — OSRM's public demo server already returns a `duration`
-  /// (seconds) alongside the route, we just weren't reading it before.
-  /// `overview=false` skips fetching the full geometry, which this
-  /// doesn't need.
+  /// Ride).
   ///
-  /// If OSRM's shared demo server is unreachable or rate-limited, this
-  /// falls back to straight-line distance between the two points at a
-  /// typical speed for the profile, rather than giving up on an estimate
-  /// entirely — geocoding still succeeded at that point, so both
-  /// coordinates are known regardless of whether routing is.
+  /// `router.project-osrm.org`'s public demo instance only actually hosts
+  /// a *driving* road network — requesting `/foot/` or `/bike/` doesn't
+  /// error, it silently routes against that same driving graph and
+  /// returns a car-speed `duration` mislabeled as the requested profile
+  /// (verified: a `/foot/` and a `/driving/` request for the same two
+  /// points come back byte-for-byte identical). Trusting that duration
+  /// for Safe Walks was turning a real ~40+ minute walk into an
+  /// implausible "8 minutes". So for walking, only the routed *distance*
+  /// is used (still a real road/path distance, not a straight line) and
+  /// the time is computed from that at a realistic walking pace instead.
+  /// Driving keeps using OSRM's own duration, since that's the one
+  /// profile the demo server actually computes for.
   static Future<int?> estimateDurationMinutes(
     LatLng origin,
     LatLng destination, {
@@ -138,8 +145,13 @@ class RouteService {
         if (body['code'] == 'Ok') {
           final routes = body['routes'] as List;
           if (routes.isNotEmpty) {
-            final seconds = (routes.first['duration'] as num).toDouble();
-            return (seconds / 60).ceil();
+            final route = routes.first as Map<String, dynamic>;
+            if (profile == 'driving') {
+              final seconds = (route['duration'] as num).toDouble();
+              return (seconds / 60).ceil();
+            }
+            final meters = (route['distance'] as num).toDouble();
+            return _minutesForDistance(meters, profile);
           }
         }
       }
@@ -148,6 +160,10 @@ class RouteService {
     }
 
     final meters = _straightLineDistance(origin, destination) * _straightLineDetourFactor;
+    return _minutesForDistance(meters, profile);
+  }
+
+  static int _minutesForDistance(double meters, String profile) {
     final kmh = profile == 'driving' ? _drivingKmh : _walkingKmh;
     final minutes = (meters / 1000 / kmh * 60).ceil();
     return minutes < 1 ? 1 : minutes;
