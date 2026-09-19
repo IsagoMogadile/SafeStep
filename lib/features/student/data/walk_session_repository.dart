@@ -77,10 +77,58 @@ class WalkSessionRepository {
     return List<Map<String, dynamic>>.from(rows);
   }
 
-  Future<void> acceptCompanionInvite(String sessionId) async {
+  /// Accepting also records the companion's own location and, when a
+  /// meeting point could be computed (needs the walker's location too —
+  /// see [CompanionInvitesScreen]), where the two of them will meet before
+  /// continuing together to the real destination.
+  Future<void> acceptCompanionInvite(
+    String sessionId, {
+    double? companionLat,
+    double? companionLng,
+    double? meetingLat,
+    double? meetingLng,
+  }) async {
     await _client
         .from('walk_sessions')
-        .update({'companion_accepted_at': DateTime.now().toUtc().toIso8601String()})
+        .update({
+          'companion_accepted_at': DateTime.now().toUtc().toIso8601String(),
+          'companion_lat': ?companionLat,
+          'companion_lng': ?companionLng,
+          'meeting_lat': ?meetingLat,
+          'meeting_lng': ?meetingLng,
+        })
+        .eq('session_id', sessionId);
+  }
+
+  /// The companion's live position while they walk to the meeting point —
+  /// separate columns from [updateLocation] (the walker's), since both
+  /// sides are moving independently until they meet up.
+  Future<void> updateCompanionLocation({
+    required String sessionId,
+    required double lat,
+    required double lng,
+  }) async {
+    await _client
+        .from('walk_sessions')
+        .update({
+          'companion_lat': lat,
+          'companion_lng': lng,
+          'companion_location_updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('session_id', sessionId);
+  }
+
+  Future<void> markWalkerReachedMeeting(String sessionId) async {
+    await _client
+        .from('walk_sessions')
+        .update({'walker_reached_meeting_at': DateTime.now().toUtc().toIso8601String()})
+        .eq('session_id', sessionId);
+  }
+
+  Future<void> markCompanionReachedMeeting(String sessionId) async {
+    await _client
+        .from('walk_sessions')
+        .update({'companion_reached_meeting_at': DateTime.now().toUtc().toIso8601String()})
         .eq('session_id', sessionId);
   }
 

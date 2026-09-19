@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../../core/location/location_service.dart';
+import '../../../../core/location/route_service.dart';
 import '../../../../core/notifications/notification_service.dart';
 import '../../data/walk_session_repository.dart';
 import '../active_sos_screen.dart';
@@ -37,6 +38,16 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
   bool get _companionAccepted => _session['companion_accepted_at'] != null;
   bool get _hasMonitors =>
       (_session['monitor_contact_ids'] as List?)?.isNotEmpty == true;
+  bool get _hasMeetingPoint =>
+      _session['meeting_lat'] != null && _session['meeting_lng'] != null;
+  bool get _walkerReachedMeeting => _session['walker_reached_meeting_at'] != null;
+  bool get _companionReachedMeeting => _session['companion_reached_meeting_at'] != null;
+  bool get _needsMeetingPointFirst =>
+      _hasMeetingPoint && !(_walkerReachedMeeting && _companionReachedMeeting);
+  LatLng get _meetingPoint => LatLng(
+    (_session['meeting_lat'] as num).toDouble(),
+    (_session['meeting_lng'] as num).toDouble(),
+  );
 
   @override
   void initState() {
@@ -66,11 +77,12 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
         const Duration(seconds: 20),
         (_) => _pushLocation(),
       );
-      if (!_companionAccepted) {
+      if (!_companionAccepted || _needsMeetingPointFirst) {
         // No realtime subscriptions exist anywhere in this app yet — a
         // short poll is the simplest correct way to notice the companion
         // accepting (scope.md §5: "they must accept before the journey
-        // starts").
+        // starts") and, once accepted, to notice them arriving at the
+        // computed meeting point.
         _acceptancePollTimer = Timer.periodic(
           const Duration(seconds: 8),
           (_) => _pollForAcceptance(),
@@ -82,9 +94,9 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
   Future<void> _pollForAcceptance() async {
     final fresh = await _repository.fetchSession(_session['session_id'] as String);
     if (!mounted) return;
-    if (fresh['companion_accepted_at'] != null) {
+    setState(() => _session = fresh);
+    if (_companionAccepted && !_needsMeetingPointFirst) {
       _acceptancePollTimer?.cancel();
-      setState(() => _session = fresh);
     }
   }
 
@@ -102,11 +114,21 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
   Future<void> _pushLocation() async {
     final position = await LocationService.getCurrentLocation();
     if (position == null || !mounted) return;
+    final sessionId = _session['session_id'] as String;
     await _repository.updateLocation(
-      sessionId: _session['session_id'] as String,
+      sessionId: sessionId,
       lat: position.latitude,
       lng: position.longitude,
     );
+    if (_needsMeetingPointFirst && !_walkerReachedMeeting) {
+      final here = LatLng(position.latitude, position.longitude);
+      if (RouteService.distanceMeters(here, _meetingPoint) <=
+          RouteService.meetingArrivalRadiusMeters) {
+        await _repository.markWalkerReachedMeeting(sessionId);
+        final fresh = await _repository.fetchSession(sessionId);
+        if (mounted) setState(() => _session = fresh);
+      }
+    }
   }
 
   /// Lets the student use other apps during a journey (feedback: "make it
@@ -363,9 +385,15 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              _companionAccepted
-                                  ? 'Your companion accepted and can see your journey.'
-                                  : 'Waiting for your companion to accept the invite…',
+                              !_companionAccepted
+                                  ? 'Waiting for your companion to accept the invite…'
+                                  : _needsMeetingPointFirst
+                                  ? (_walkerReachedMeeting
+                                        ? "You're at the meeting point — waiting for your "
+                                              'companion…'
+                                        : 'Your companion accepted — walk to the meeting '
+                                              'point shown below.')
+                                  : 'Your companion accepted and can see your journey.',
                             ),
                           ),
                         ],
@@ -374,18 +402,31 @@ class _WalkActiveScreenState extends State<WalkActiveScreen> {
                   ),
                   if (_companionAccepted &&
                       _session['start_lat'] != null &&
-                      _session['start_lng'] != null &&
-                      (_session['destination'] as String?)?.isNotEmpty == true) ...[
-                    const SizedBox(height: 16),
-                    Text('Planned route', style: Theme.of(context).textTheme.titleSmall),
-                    const SizedBox(height: 8),
-                    RouteMapView(
-                      origin: LatLng(
-                        (_session['start_lat'] as num).toDouble(),
-                        (_session['start_lng'] as num).toDouble(),
+                      _session['start_lng'] != null) ...[
+                    if (_needsMeetingPointFirst) ...[
+                      const SizedBox(height: 16),
+                      Text('Meet your companion first', style: Theme.of(context).textTheme.titleSmall),
+                      const SizedBox(height: 8),
+                      RouteMapView(
+                        origin: LatLng(
+                          (_session['start_lat'] as num).toDouble(),
+                          (_session['start_lng'] as num).toDouble(),
+                        ),
+                        destinationPoint: _meetingPoint,
+                        destinationIcon: Icons.handshake,
                       ),
-                      destinationQuery: _session['destination'] as String,
-                    ),
+                    ] else if ((_session['destination'] as String?)?.isNotEmpty == true) ...[
+                      const SizedBox(height: 16),
+                      Text('Planned route', style: Theme.of(context).textTheme.titleSmall),
+                      const SizedBox(height: 8),
+                      RouteMapView(
+                        origin: LatLng(
+                          (_session['start_lat'] as num).toDouble(),
+                          (_session['start_lng'] as num).toDouble(),
+                        ),
+                        destinationQuery: _session['destination'] as String,
+                      ),
+                    ],
                   ],
                 ],
                 const SizedBox(height: 24),

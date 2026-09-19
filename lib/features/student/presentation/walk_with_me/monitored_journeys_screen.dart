@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/supabase/supabase_service.dart';
 import '../../../../core/widgets/skeleton_loader.dart';
 import '../../data/walk_session_repository.dart';
-import 'monitor_tracking_screen.dart';
+import 'companion_meeting_screen.dart';
 
 /// Every active journey the signed-in student can currently watch live:
 /// "Monitor My Journey" sessions they were picked as a monitor for, plus
@@ -77,7 +77,7 @@ class _MonitoredJourneysScreenState extends State<MonitoredJourneysScreen> {
                     onTap: () async {
                       await Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => MonitorTrackingScreen(session: session),
+                          builder: (_) => companionTrackingScreenFor(session),
                         ),
                       );
                       _refresh();

@@ -17,6 +17,10 @@ class RouteService {
 
   static const _userAgent = 'SafeStep-Hackathon-Prototype/1.0';
   static const _straightLineDistance = Distance();
+  // How close either party's GPS fix needs to be to the computed meeting
+  // point before that person counts as "arrived" — generous enough to
+  // absorb normal phone GPS drift outdoors.
+  static const meetingArrivalRadiusMeters = 40.0;
   // Real paths aren't straight lines — pad the raw distance so a
   // straight-line fallback estimate doesn't undershoot a routed one.
   static const _straightLineDetourFactor = 1.3;
@@ -167,5 +171,18 @@ class RouteService {
     final kmh = profile == 'driving' ? _drivingKmh : _walkingKmh;
     final minutes = (meters / 1000 / kmh * 60).ceil();
     return minutes < 1 ? 1 : minutes;
+  }
+
+  /// Straight-line distance in meters — used for "have they arrived at the
+  /// meeting point yet" checks, where a real routed distance would be
+  /// overkill for a simple proximity test.
+  static double distanceMeters(LatLng a, LatLng b) => _straightLineDistance(a, b);
+
+  /// Simple arithmetic midpoint between two people, used as the "meet
+  /// here" point for Walk With Me's Invite a Companion flow. A true
+  /// geodesic midpoint isn't worth the complexity at walking-distance
+  /// scales (a few km at most), where the difference is negligible.
+  static LatLng midpoint(LatLng a, LatLng b) {
+    return LatLng((a.latitude + b.latitude) / 2, (a.longitude + b.longitude) / 2);
   }
 }

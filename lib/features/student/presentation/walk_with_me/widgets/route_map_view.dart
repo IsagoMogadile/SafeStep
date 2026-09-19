@@ -11,10 +11,27 @@ import '../../../../../core/theme/app_theme.dart';
 /// straight line if the routing service is unreachable, and to a
 /// destination-not-found message if geocoding fails outright.
 class RouteMapView extends StatefulWidget {
-  const RouteMapView({super.key, required this.origin, required this.destinationQuery});
+  const RouteMapView({
+    super.key,
+    required this.origin,
+    this.destinationQuery,
+    this.destinationPoint,
+    this.destinationIcon = Icons.flag,
+  }) : assert(
+         (destinationQuery == null) != (destinationPoint == null),
+         'Provide exactly one of destinationQuery or destinationPoint',
+       );
 
   final LatLng origin;
-  final String destinationQuery;
+
+  /// Free-text destination to geocode — used for the real journey
+  /// destination.
+  final String? destinationQuery;
+
+  /// Already-known destination coordinates — used for the computed
+  /// meeting point, which has no address to geocode.
+  final LatLng? destinationPoint;
+  final IconData destinationIcon;
 
   @override
   State<RouteMapView> createState() => _RouteMapViewState();
@@ -30,7 +47,8 @@ class _RouteMapViewState extends State<RouteMapView> {
   }
 
   Future<_PlannedRoute?> _planRoute() async {
-    final destination = await RouteService.geocode(widget.destinationQuery);
+    final destination =
+        widget.destinationPoint ?? await RouteService.geocode(widget.destinationQuery!);
     if (destination == null) return null;
     final path = await RouteService.fetchWalkingRoute(widget.origin, destination);
     return _PlannedRoute(destination: destination, path: path ?? [widget.origin, destination]);
@@ -53,7 +71,7 @@ class _RouteMapViewState extends State<RouteMapView> {
             height: 220,
             child: Center(
               child: Text(
-                "Couldn't find \"${widget.destinationQuery}\" on the map.",
+                "Couldn't find \"${widget.destinationQuery ?? 'the meeting point'}\" on the map.",
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
@@ -96,7 +114,7 @@ class _RouteMapViewState extends State<RouteMapView> {
                       point: route.destination,
                       width: 34,
                       height: 34,
-                      child: const Icon(Icons.flag, color: AppColors.alert, size: 26),
+                      child: Icon(widget.destinationIcon, color: AppColors.alert, size: 26),
                     ),
                   ],
                 ),
