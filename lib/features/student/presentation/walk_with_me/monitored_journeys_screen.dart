@@ -5,10 +5,10 @@ import '../../../../core/widgets/skeleton_loader.dart';
 import '../../data/walk_session_repository.dart';
 import 'monitor_tracking_screen.dart';
 
-/// Every active "Monitor My Journey" session where the signed-in student
-/// was picked as a monitor — the counterpart to CompanionInvitesScreen,
-/// minus an accept step since a monitor doesn't need to opt in before
-/// watching.
+/// Every active journey the signed-in student can currently watch live:
+/// "Monitor My Journey" sessions they were picked as a monitor for, plus
+/// "Invite a Companion" journeys they've already accepted — a persistent
+/// way back into MonitorTrackingScreen if they navigate away from either.
 class MonitoredJourneysScreen extends StatefulWidget {
   const MonitoredJourneysScreen({super.key});
 
@@ -37,7 +37,7 @@ class _MonitoredJourneysScreenState extends State<MonitoredJourneysScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Journeys You Monitor')),
+      appBar: AppBar(title: const Text('Journeys You Track')),
       body: RefreshIndicator(
         onRefresh: () async => _refresh(),
         child: FutureBuilder<List<Map<String, dynamic>>>(
@@ -55,7 +55,7 @@ class _MonitoredJourneysScreenState extends State<MonitoredJourneysScreen> {
                 children: const [
                   Padding(
                     padding: EdgeInsets.all(32),
-                    child: Center(child: Text('No one you monitor is on a journey right now.')),
+                    child: Center(child: Text("No one you're tracking is on a journey right now.")),
                   ),
                 ],
               );

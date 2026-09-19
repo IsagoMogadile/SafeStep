@@ -149,10 +149,11 @@ class WalkSessionRepository {
         .eq('session_id', sessionId);
   }
 
-  /// Every active `self_monitored` session where the signed-in student is
-  /// one of the chosen monitors (their own `trusted_contacts` row, linked
-  /// back to them, is in `monitor_contact_ids`) — same linking pattern as
-  /// [fetchPendingCompanionInvites].
+  /// Every active journey the signed-in student can currently watch live
+  /// on a map: `self_monitored` sessions where they're one of the chosen
+  /// monitors, plus `invite_companion` sessions where they're the
+  /// companion and have already accepted — both linked via their own
+  /// `trusted_contacts` row, same pattern as [fetchPendingCompanionInvites].
   Future<List<Map<String, dynamic>>> fetchActiveMonitoredSessions(
     String monitorStudentId,
   ) async {
@@ -163,13 +164,25 @@ class WalkSessionRepository {
     final contactIds = myContactRows.map((r) => r['contact_id'] as String).toList();
     if (contactIds.isEmpty) return [];
 
-    final rows = await _client
+    final monitored = await _client
         .from('walk_sessions')
         .select('*, students(full_name)')
         .eq('mode', 'self_monitored')
         .eq('status', 'active')
         .overlaps('monitor_contact_ids', contactIds);
-    return List<Map<String, dynamic>>.from(rows);
+
+    final companionJourneys = await _client
+        .from('walk_sessions')
+        .select('*, students(full_name)')
+        .eq('mode', 'invite_companion')
+        .eq('status', 'active')
+        .inFilter('companion_contact_id', contactIds)
+        .not('companion_accepted_at', 'is', null);
+
+    return [
+      ...List<Map<String, dynamic>>.from(monitored),
+      ...List<Map<String, dynamic>>.from(companionJourneys),
+    ];
   }
 
   Future<void> markCheckInMissed(String sessionId) async {

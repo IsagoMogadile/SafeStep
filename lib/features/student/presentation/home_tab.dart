@@ -187,8 +187,8 @@ class HomeTab extends StatelessWidget {
                                 Expanded(
                                   child: Text(
                                     count == 1
-                                        ? "You're monitoring 1 journey right now"
-                                        : "You're monitoring $count journeys right now",
+                                        ? "You're tracking 1 journey right now"
+                                        : "You're tracking $count journeys right now",
                                     style: const TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w700,
