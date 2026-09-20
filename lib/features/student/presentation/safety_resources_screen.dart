@@ -3,6 +3,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/supabase/supabase_service.dart';
 import '../../../core/widgets/skeleton_loader.dart';
+import '../../../core/widgets/staleness_banner.dart';
+import '../data/resources_cache.dart';
 
 /// scope.md §5 "Safety resources": seeded guidance + admin-verified
 /// community-submitted tips, read from the real `resources` table.
@@ -15,23 +17,42 @@ class SafetyResourcesScreen extends StatefulWidget {
 
 class _SafetyResourcesScreenState extends State<SafetyResourcesScreen> {
   late Future<List<Map<String, dynamic>>> _resourcesFuture;
+  bool _isStale = false;
+  DateTime? _cachedAt;
 
   @override
   void initState() {
     super.initState();
-    _resourcesFuture = _fetchResources();
+    _resourcesFuture = _loadResources();
   }
 
-  Future<List<Map<String, dynamic>>> _fetchResources() {
-    return SupabaseService.client
+  Future<List<Map<String, dynamic>>> _loadResources() async {
+    try {
+      final resources = await _fetchResources();
+      await ResourcesCache.save(resources);
+      return resources;
+    } catch (_) {
+      final (cached, cachedAt) = await ResourcesCache.load();
+      if (cached.isEmpty) rethrow;
+      if (mounted) setState(() { _isStale = true; _cachedAt = cachedAt; });
+      return cached;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchResources() async {
+    final rows = await SupabaseService.client
         .from('resources')
         .select()
         .eq('status', 'published')
         .order('created_at');
+    return List<Map<String, dynamic>>.from(rows);
   }
 
   Future<void> _refresh() async {
-    setState(() { _resourcesFuture = _fetchResources(); });
+    setState(() {
+      _isStale = false;
+      _resourcesFuture = _loadResources();
+    });
   }
 
   IconData _iconFor(String? type) {
@@ -47,7 +68,11 @@ class _SafetyResourcesScreenState extends State<SafetyResourcesScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Safety Resources')),
-      body: RefreshIndicator(
+      body: Column(
+        children: [
+          if (_isStale) StalenessBanner(lastUpdated: _cachedAt),
+          Expanded(
+            child: RefreshIndicator(
         onRefresh: _refresh,
         child: FutureBuilder<List<Map<String, dynamic>>>(
           future: _resourcesFuture,
@@ -116,6 +141,9 @@ class _SafetyResourcesScreenState extends State<SafetyResourcesScreen> {
             );
           },
         ),
+      ),
+          ),
+        ],
       ),
     );
   }

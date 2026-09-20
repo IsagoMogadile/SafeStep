@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/storage/storage_uploader.dart';
 import '../../../core/supabase/supabase_service.dart';
+import '../../auth/data/student_registration_repository.dart';
 import '../../auth/domain/nmu_faculties.dart';
 import '../../auth/domain/student_details.dart';
 import '../../auth/domain/campus.dart';
@@ -52,17 +53,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _load() async {
-    final campusRows = await SupabaseService.client
-        .from('campuses')
-        .select('campus_id, name')
-        .order('name');
+    final campuses = await StudentRegistrationRepository().fetchCampuses();
     final row = await SupabaseService.client
         .from('students')
         .select()
         .eq('student_id', _userId)
         .maybeSingle();
 
-    _campuses = campusRows.map((r) => Campus.fromRow(r)).toList();
+    _campuses = campuses;
     _fullNameController.text = (row?['full_name'] as String?) ?? '';
     _phoneController.text = (row?['phone'] as String?) ?? '';
     _addressController.text = (row?['address'] as String?) ?? '';

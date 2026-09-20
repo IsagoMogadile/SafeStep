@@ -193,11 +193,16 @@ class AdminRepository {
   // to a responder during that student's own active alert. None of those
   // fields are selected here.) ---------------------------------------
 
-  Future<List<Map<String, dynamic>>> fetchStudents() async {
+  // A cap here is pure insurance against a real deployment's student body
+  // growing past demo size — nothing in this app builds a "load more" UI
+  // for this list yet, so an unbounded query would otherwise just keep
+  // fetching every row that exists, forever, as enrollment grows.
+  Future<List<Map<String, dynamic>>> fetchStudents({int limit = 500}) async {
     final rows = await _client
         .from('students')
         .select('student_id, full_name, email, created_at, campuses(name)')
-        .order('full_name');
+        .order('full_name')
+        .limit(limit);
     return List<Map<String, dynamic>>.from(rows);
   }
 
@@ -399,11 +404,12 @@ class AdminRepository {
 
   // ---- resources ---------------------------------------------------------
 
-  Future<List<Map<String, dynamic>>> fetchResources() async {
+  Future<List<Map<String, dynamic>>> fetchResources({int limit = 500}) async {
     final rows = await _client
         .from('resources')
         .select('*')
-        .order('created_at', ascending: false);
+        .order('created_at', ascending: false)
+        .limit(limit);
     return List<Map<String, dynamic>>.from(rows);
   }
 
@@ -477,11 +483,12 @@ class AdminRepository {
 
   // ---- incident reports ----------------------------------------------
 
-  Future<List<Map<String, dynamic>>> fetchReports() async {
+  Future<List<Map<String, dynamic>>> fetchReports({int limit = 500}) async {
     final rows = await _client
         .from('incident_reports')
         .select('*, zones(name), students(full_name, email)')
-        .order('created_at', ascending: false);
+        .order('created_at', ascending: false)
+        .limit(limit);
     return List<Map<String, dynamic>>.from(rows);
   }
 

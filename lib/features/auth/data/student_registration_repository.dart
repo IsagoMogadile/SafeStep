@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_service.dart';
+import 'campuses_cache.dart';
 import '../domain/campus.dart';
 import '../domain/student_details.dart';
 
@@ -10,12 +11,24 @@ class StudentRegistrationRepository {
 
   final SupabaseClient _client;
 
+  /// Campuses are static reference data (four NMU Summerstrand campuses,
+  /// effectively never changing) — cache-then-refresh rather than a fresh
+  /// network round trip every time this (pre-login, so no session to
+  /// piggyback on) wizard screen opens. Falls back to the cache on any
+  /// failure, including offline.
   Future<List<Campus>> fetchCampuses() async {
-    final rows = await _client
-        .from('campuses')
-        .select('campus_id, name')
-        .order('name');
-    return rows.map((row) => Campus.fromRow(row)).toList();
+    try {
+      final rows = await _client
+          .from('campuses')
+          .select('campus_id, name')
+          .order('name');
+      final list = List<Map<String, dynamic>>.from(rows);
+      await CampusesCache.save(list);
+      return list.map((row) => Campus.fromRow(row)).toList();
+    } catch (_) {
+      final cached = await CampusesCache.load();
+      return cached.map((row) => Campus.fromRow(row)).toList();
+    }
   }
 
   /// Creates (or, if the student went back and edited earlier steps,

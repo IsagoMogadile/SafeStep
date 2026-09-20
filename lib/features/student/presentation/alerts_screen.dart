@@ -47,13 +47,23 @@ class _AlertsScreenState extends State<AlertsScreen> {
     } catch (e) {
       final (cached, cachedAt) = await AlertsCache.load();
       if (cached.isEmpty) {
+        // Nothing to fall back to — a real error, not just "offline".
         if (mounted) setState(() => _error = e);
         return;
       }
-      // Nothing to fall back to — a real error, not just "offline".
+      // The live fetch path filters out swiped-away personal alerts at
+      // query time (see _fetchAlerts) — the cache is a snapshot taken
+      // before that filtering can change, so it needs the same filter
+      // applied here too, or a dismissed alert reappears the moment the
+      // app falls back to cached data (offline, or dismissed while
+      // already offline).
+      final dismissedIds = await DismissedAlertsPrefs.all();
+      final filtered = cached
+          .where((row) => row['_kind'] != 'personal_alert' || !dismissedIds.contains(row['id']))
+          .toList();
       if (mounted) {
         setState(() {
-          _alerts = cached;
+          _alerts = filtered;
           _error = null;
           _isStale = true;
           _cachedAt = cachedAt;
@@ -104,7 +114,12 @@ class _AlertsScreenState extends State<AlertsScreen> {
               '_kind': 'personal_alert',
               'id': row['alert_id'] as String,
               '_time': (row['resolved_at'] as String?) ?? row['triggered_at'] as String,
-              'title': 'Your ${row['alert_type']} alert',
+              // Deliberately not `'Your ${row['alert_type']} alert'` — that
+              // echoed the raw DB column straight into the UI with no
+              // filtering, so any unexpected value there (e.g. older
+              // seed/demo rows using a richer category than this app ever
+              // writes) leaked directly into the title.
+              'title': 'Alert',
               'message': _statusLabels[status] ?? 'Status: $status',
               'status': status,
               'triggeredAt': row['triggered_at'] as String,
