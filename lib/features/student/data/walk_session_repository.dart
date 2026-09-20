@@ -211,26 +211,22 @@ class WalkSessionRepository {
   }
 
   /// Every active journey the signed-in student can currently watch live
-  /// on a map: `self_monitored` sessions where they're one of the chosen
-  /// monitors, plus `invite_companion` sessions where they're the
-  /// companion and have already accepted — both linked via their own
-  /// `trusted_contacts` row, same pattern as [fetchPendingCompanionInvites].
+  /// on a map: accepted `invite_companion` journeys where they're the
+  /// companion, linked via their own `trusted_contacts` row, same pattern
+  /// as [fetchPendingCompanionInvites].
+  ///
+  /// Deliberately excludes `self_monitored` sessions — a "Monitor My
+  /// Journey" pick only ever gets a one-shot notification (see
+  /// [fetchSelfMonitoredNotifiableSessions] / MonitoredJourneyPoller), not
+  /// a live map. Live tracking is specific to the Invite a Companion flow,
+  /// which is built around two people actually meeting up; a monitor
+  /// pick for a self-monitored walk was never meant to double as a
+  /// tracker.
   Future<List<Map<String, dynamic>>> fetchActiveMonitoredSessions(
     String monitorStudentId,
   ) async {
-    final myContactRows = await _client
-        .from('trusted_contacts')
-        .select('contact_id')
-        .eq('linked_student_id', monitorStudentId);
-    final contactIds = myContactRows.map((r) => r['contact_id'] as String).toList();
+    final contactIds = await _myLinkedContactIds(monitorStudentId);
     if (contactIds.isEmpty) return [];
-
-    final monitored = await _client
-        .from('walk_sessions')
-        .select('*, students(full_name)')
-        .eq('mode', 'self_monitored')
-        .eq('status', 'active')
-        .overlaps('monitor_contact_ids', contactIds);
 
     final companionJourneys = await _client
         .from('walk_sessions')
@@ -240,10 +236,35 @@ class WalkSessionRepository {
         .inFilter('companion_contact_id', contactIds)
         .not('companion_accepted_at', 'is', null);
 
-    return [
-      ...List<Map<String, dynamic>>.from(monitored),
-      ...List<Map<String, dynamic>>.from(companionJourneys),
-    ];
+    return List<Map<String, dynamic>>.from(companionJourneys);
+  }
+
+  /// `self_monitored` sessions where the signed-in student was picked as a
+  /// monitor — used only to detect a newly-started one and fire a single
+  /// notification (MonitoredJourneyPoller). Never surfaced as a trackable
+  /// list anywhere in the UI.
+  Future<List<Map<String, dynamic>>> fetchSelfMonitoredNotifiableSessions(
+    String monitorStudentId,
+  ) async {
+    final contactIds = await _myLinkedContactIds(monitorStudentId);
+    if (contactIds.isEmpty) return [];
+
+    final monitored = await _client
+        .from('walk_sessions')
+        .select('session_id, destination, students(full_name)')
+        .eq('mode', 'self_monitored')
+        .eq('status', 'active')
+        .overlaps('monitor_contact_ids', contactIds);
+
+    return List<Map<String, dynamic>>.from(monitored);
+  }
+
+  Future<List<String>> _myLinkedContactIds(String monitorStudentId) async {
+    final myContactRows = await _client
+        .from('trusted_contacts')
+        .select('contact_id')
+        .eq('linked_student_id', monitorStudentId);
+    return myContactRows.map((r) => r['contact_id'] as String).toList();
   }
 
   Future<void> markCheckInMissed(String sessionId) async {

@@ -5,28 +5,36 @@ import 'package:flutter/foundation.dart';
 import '../../../core/notifications/notification_service.dart';
 import 'walk_session_repository.dart';
 
-/// Polls for journeys the signed-in student can watch live (both "Monitor
-/// My Journey" sessions where they were picked as a monitor, and accepted
-/// "Invite a Companion" journeys), and raises a local notification the
-/// moment a new *monitored* one starts — same polling approach as
-/// AlertStatusPoller, since this app has no realtime/push mechanism to
-/// notify another student's device the instant a journey begins. Accepted
-/// companion journeys don't get this notification: accepting was already
-/// that student's own action, so a follow-up "X started a journey"
-/// notification right after would just be a confusing echo of what they
-/// already know — they're taken straight to the tracking screen instead.
+/// Polls two separate things for the signed-in student, since they get
+/// different treatment:
+///
+/// 1. Accepted "Invite a Companion" journeys, which feed the trackable
+///    "Journeys You Track" list/badge via [onChange] — this is the one
+///    case actually built around live tracking.
+/// 2. "Monitor My Journey" picks, which only ever raise a one-shot local
+///    notification the moment a new one starts — no list, no badge, no
+///    live map. Being picked as a monitor for someone's self-monitored
+///    walk means "you'll be told if this starts," not "you can watch it."
+///
+/// Same polling approach as AlertStatusPoller, since this app has no
+/// realtime/push mechanism to notify another student's device instantly.
+/// Accepted companion journeys don't get a notification: accepting was
+/// already that student's own action, so a follow-up "X started a
+/// journey" right after would just echo what they already know — they're
+/// taken straight to the tracking screen instead.
 class MonitoredJourneyPoller {
   MonitoredJourneyPoller({required this.studentId, this.onChange});
 
   final String studentId;
 
-  /// Called whenever a new monitored journey appears or an existing one
-  /// stops being active, so the caller can refresh a badge count.
+  /// Called whenever the trackable (Invite a Companion) list changes, so
+  /// the caller can refresh a badge count.
   final VoidCallback? onChange;
 
   final _repository = WalkSessionRepository();
   Timer? _timer;
-  final _knownSessionIds = <String>{};
+  final _knownTrackableIds = <String>{};
+  final _knownSelfMonitoredIds = <String>{};
   bool _seeded = false;
 
   void start() {
@@ -37,28 +45,32 @@ class MonitoredJourneyPoller {
   void stop() => _timer?.cancel();
 
   Future<void> _poll() async {
-    List<Map<String, dynamic>> sessions;
+    List<Map<String, dynamic>> trackable;
+    List<Map<String, dynamic>> selfMonitored;
     try {
-      sessions = await _repository.fetchActiveMonitoredSessions(studentId);
+      trackable = await _repository.fetchActiveMonitoredSessions(studentId);
+      selfMonitored = await _repository.fetchSelfMonitoredNotifiableSessions(studentId);
     } catch (_) {
       return; // offline or transient error — just try again next tick
     }
 
-    final currentIds = sessions.map((s) => s['session_id'] as String).toSet();
-    final newIds = currentIds.difference(_knownSessionIds);
-    if (_seeded && newIds.isNotEmpty) {
-      final newSessions = sessions.where(
-        (s) => newIds.contains(s['session_id']) && s['mode'] == 'self_monitored',
-      );
-      for (final session in newSessions) {
+    final currentTrackableIds = trackable.map((s) => s['session_id'] as String).toSet();
+    final currentSelfMonitoredIds = selfMonitored.map((s) => s['session_id'] as String).toSet();
+
+    if (_seeded) {
+      final newSelfMonitoredIds = currentSelfMonitoredIds.difference(_knownSelfMonitoredIds);
+      for (final session in selfMonitored.where((s) => newSelfMonitoredIds.contains(s['session_id']))) {
         await _notify(session);
       }
+      if (!setEquals(currentTrackableIds, _knownTrackableIds)) onChange?.call();
     }
-    if (_seeded && !setEquals(currentIds, _knownSessionIds)) onChange?.call();
 
-    _knownSessionIds
+    _knownTrackableIds
       ..clear()
-      ..addAll(currentIds);
+      ..addAll(currentTrackableIds);
+    _knownSelfMonitoredIds
+      ..clear()
+      ..addAll(currentSelfMonitoredIds);
     _seeded = true;
   }
 
@@ -67,7 +79,7 @@ class MonitoredJourneyPoller {
     final destination = session['destination'] as String? ?? 'their destination';
     await NotificationService.instance.showMonitoredJourneyNotification(
       title: 'Monitoring $name',
-      body: '$name started a journey to $destination — tap to track them.',
+      body: '$name started a journey to $destination.',
     );
   }
 }

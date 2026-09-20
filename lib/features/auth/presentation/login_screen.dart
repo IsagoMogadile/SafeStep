@@ -8,6 +8,7 @@ import '../data/auth_repository.dart';
 import '../domain/app_role.dart';
 import 'forgot_password_screen.dart';
 import 'incomplete_account_screen.dart';
+import 'welcome_screen.dart';
 import 'widgets/auth_branding_header.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -171,6 +172,22 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2.4),
                         )
                       : const Text('Log In'),
+                ),
+                const SizedBox(height: 12),
+                // Testing convenience only — lets whoever's demoing jump
+                // back to onboarding without reinstalling/rebuilding the
+                // app just to see that flow again.
+                Center(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+                      (route) => false,
+                    ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.outline,
+                    ),
+                    child: const Text('← Back to onboarding', style: TextStyle(fontSize: 12)),
+                  ),
                 ),
               ],
             ),
