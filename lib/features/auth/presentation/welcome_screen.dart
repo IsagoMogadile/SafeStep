@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../onboarding/onboarding_screen.dart';
 import 'create_account_screen.dart';
 import 'login_screen.dart';
 
@@ -17,6 +18,21 @@ class WelcomeScreen extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             children: [
+              const SizedBox(height: 8),
+              // Testing/demo convenience, deliberately prominent and
+              // always at the top — OnboardingGate only ever shows the
+              // intro slides once per install, so without this there's
+              // no way back to them short of reinstalling the app.
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+                  ),
+                  icon: const Icon(Icons.replay),
+                  label: const Text('View Onboarding Intro'),
+                ),
+              ),
               const Spacer(flex: 3),
               ClipRRect(
                 borderRadius: BorderRadius.circular(24),
