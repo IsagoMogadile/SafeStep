@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/location/location_service.dart';
+import '../../../../core/location/route_service.dart';
 import '../../../../core/supabase/supabase_service.dart';
 import '../../data/walk_session_repository.dart';
 import 'walk_active_screen.dart';
@@ -76,10 +77,29 @@ class _WalkInviteScreenState extends State<WalkInviteScreen> {
   Future<void> _pickDestinationOnMap() async {
     final picked = await pickDestinationOnMap(context);
     if (picked != null && mounted) {
-      setState(() => _destinationController.text = picked);
+      setState(() => _destinationController.text = picked.label);
     }
   }
 
+  Future<void> _pickStartLocationOnMap() async {
+    final picked = await pickDestinationOnMap(
+      context,
+      title: 'Choose your starting point',
+    );
+    if (picked != null && mounted) {
+      setState(() {
+        _startLocationController.text = picked.label;
+        _startLat = picked.point.latitude;
+        _startLng = picked.point.longitude;
+      });
+    }
+  }
+
+  /// The meeting point that gets computed once the companion accepts is
+  /// the midpoint between both starting points, so a real coordinate is
+  /// required here — not just free text. If the student typed an address
+  /// instead of using "current location" or the map picker, geocode it
+  /// before submitting.
   Future<void> _sendInvite() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedContactId == null) {
@@ -93,14 +113,29 @@ class _WalkInviteScreenState extends State<WalkInviteScreen> {
     });
 
     try {
+      if (_startLat == null || _startLng == null) {
+        final resolved = await RouteService.geocode(
+          _startLocationController.text.trim(),
+        );
+        if (resolved == null) {
+          setState(() {
+            _errorMessage =
+                "Couldn't find that starting location — try Use current "
+                'location, or pick it on the map instead.';
+            _isSubmitting = false;
+          });
+          return;
+        }
+        _startLat = resolved.latitude;
+        _startLng = resolved.longitude;
+      }
+
       final userId = SupabaseService.client.auth.currentUser!.id;
       final session = await _repository.createInviteSession(
         studentId: userId,
         companionContactId: _selectedContactId!,
         destination: _destinationController.text.trim(),
-        startLocationText: _startLocationController.text.trim().isEmpty
-            ? null
-            : _startLocationController.text.trim(),
+        startLocationText: _startLocationController.text.trim(),
         startLat: _startLat,
         startLng: _startLng,
       );
@@ -172,7 +207,7 @@ class _WalkInviteScreenState extends State<WalkInviteScreen> {
                 TextFormField(
                   controller: _startLocationController,
                   decoration: InputDecoration(
-                    labelText: 'Start Location (optional)',
+                    labelText: 'Start Location',
                     hintText: 'Where are you starting from?',
                     prefixIcon: const Icon(Icons.trip_origin),
                     suffixIcon: _isLocating
@@ -184,12 +219,25 @@ class _WalkInviteScreenState extends State<WalkInviteScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             ),
                           )
-                        : IconButton(
-                            icon: const Icon(Icons.my_location),
-                            tooltip: 'Use current location',
-                            onPressed: _useCurrentLocation,
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.map_outlined),
+                                tooltip: 'Pick on map',
+                                onPressed: _pickStartLocationOnMap,
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.my_location),
+                                tooltip: 'Use current location',
+                                onPressed: _useCurrentLocation,
+                              ),
+                            ],
                           ),
                   ),
+                  validator: (value) => (value == null || value.trim().isEmpty)
+                      ? 'Enter your starting location'
+                      : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(

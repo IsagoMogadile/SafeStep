@@ -77,23 +77,36 @@ class WalkSessionRepository {
     return List<Map<String, dynamic>>.from(rows);
   }
 
-  /// Accepting also records the companion's own location and, when a
-  /// meeting point could be computed (needs the walker's location too —
-  /// see [CompanionInvitesScreen]), where the two of them will meet before
-  /// continuing together to the real destination.
-  Future<void> acceptCompanionInvite(
+  /// Marks the invite accepted. The companion's own starting point (and
+  /// the meeting point computed from it) is asked for and recorded
+  /// separately, right after this — see [setCompanionMeetingPoint] and
+  /// [CompanionStartLocationScreen].
+  Future<void> acceptCompanionInvite(String sessionId) async {
+    await _client
+        .from('walk_sessions')
+        .update({
+          'companion_accepted_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('session_id', sessionId);
+  }
+
+  /// Records the companion's own starting point and, when a meeting point
+  /// could be computed from it (the walker and companion need to be close
+  /// enough — see [CompanionStartLocationScreen]), the point roughly
+  /// midway between both starting points where the two of them will meet
+  /// before continuing together to the real destination.
+  Future<void> setCompanionMeetingPoint(
     String sessionId, {
-    double? companionLat,
-    double? companionLng,
+    required double companionLat,
+    required double companionLng,
     double? meetingLat,
     double? meetingLng,
   }) async {
     await _client
         .from('walk_sessions')
         .update({
-          'companion_accepted_at': DateTime.now().toUtc().toIso8601String(),
-          'companion_lat': ?companionLat,
-          'companion_lng': ?companionLng,
+          'companion_lat': companionLat,
+          'companion_lng': companionLng,
           'meeting_lat': ?meetingLat,
           'meeting_lng': ?meetingLng,
         })
